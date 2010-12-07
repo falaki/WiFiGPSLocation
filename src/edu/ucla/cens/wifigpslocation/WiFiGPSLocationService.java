@@ -121,7 +121,7 @@ public class WiFiGPSLocationService
         = 10 * ONE_MINUTE; // Ten minutes
 	
 	private static final int SIGNAL_THRESHOLD 
-        = -70;
+        = -90;
     private static final double GPS_ACCURACY_THRESHOLD 
         = 10.0;
 	private static final int SIGNIFICANCE_THRESHOLD 
