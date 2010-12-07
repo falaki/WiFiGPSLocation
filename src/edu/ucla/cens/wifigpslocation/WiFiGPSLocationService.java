@@ -439,6 +439,8 @@ public class WiFiGPSLocationService
                     //more stable.  So I am ignoring weak APs.
 	    			if (result.level > SIGNAL_THRESHOLD)
 	    				sResult.add(result.BSSID);
+                    Log.v(TAG, result.BSSID + " (" + level 
+                            + "dBm)");
 	    		}
 	    	
 	    		Log.v(TAG, "Filtered " 
