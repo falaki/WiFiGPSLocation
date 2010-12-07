@@ -483,7 +483,7 @@ public class WiFiGPSLocationService
             {
                 if (!mScanCache.get(mLastWifiSet).known)
                 {
-                    Log.i(TAG, "updating the record: " + 
+                    Log.i(TAG, "Updating the record: " + 
                             cacheEntry(mLastWifiSet));
                     mScanCache.get(mLastWifiSet).known = true;
                     mScanCache.get(mLastWifiSet).loc = location;
@@ -501,7 +501,7 @@ public class WiFiGPSLocationService
         }
         else
         {
-            Log.i(TAG, "Not accurate enough.");
+            Log.v(TAG, "Not accurate enough.");
             mTempKnownLoc = location;
             mHandler.removeMessages(LOC_UPDATE_MSG);
             mHandler.sendMessageAtTime(
