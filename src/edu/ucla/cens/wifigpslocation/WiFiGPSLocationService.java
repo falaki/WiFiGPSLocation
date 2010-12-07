@@ -601,11 +601,11 @@ public class WiFiGPSLocationService
     	// First thing, if the set is "empty", I am at a location with
         // no WiFi coverage. We default to GPS scanning in such
         // situations. So turn on GPS and return
-    	if (wifiSet.size() < 1)
+    	if (wifiSet.size() == 0)
     	{
 			if (!mGPSRunning)
 			{
-				Log.i(TAG, "Starting GPS.");
+				Log.i(TAG, "No WiFi AP found. Starting GPS.");
 				mLocManager.requestLocationUpdates(
                         LocationManager.GPS_PROVIDER, 
                         mGpsScanInterval, 0, this);
