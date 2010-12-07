@@ -21,7 +21,7 @@ public class GPSInfo
 		count = 1;
 
         Random rnd = new Random(SystemClock.uptimeMillis());
-        randId = rnd.nextInt();
+        randId = rnd.nextInt(Integer.MAX_VALUE);
 	}
 	
 	public GPSInfo(Boolean iKnown, long iTime)
@@ -31,7 +31,7 @@ public class GPSInfo
 		count = 1;
 
         Random rnd = new Random(SystemClock.uptimeMillis());
-        randId = rnd.nextInt();
+        randId = rnd.nextInt(Integer.MAX_VALUE);
 
 	}
 	
