@@ -121,7 +121,7 @@ public class WiFiGPSLocationService
         = 10 * ONE_MINUTE; // Ten minutes
 	
 	private static final int SIGNAL_THRESHOLD 
-        = -90;
+        = -80;
     private static final double GPS_ACCURACY_THRESHOLD 
         = 10.0;
 	private static final int SIGNIFICANCE_THRESHOLD 
@@ -501,7 +501,7 @@ public class WiFiGPSLocationService
         }
         else
         {
-            Log.v(TAG, "Not accurate enough.");
+            //Log.v(TAG, "Not accurate enough.");
             mTempKnownLoc = location;
             mHandler.removeMessages(LOC_UPDATE_MSG);
             mHandler.sendMessageAtTime(
@@ -606,14 +606,21 @@ public class WiFiGPSLocationService
         // situations. So turn on GPS and return
     	if (wifiSet.size() == 0)
     	{
+            Log.i(TAG, "No WiFi AP found.");
 			if (!mGPSRunning)
 			{
-				Log.i(TAG, "No WiFi AP found. Starting GPS.");
+				Log.i(TAG, "Starting GPS.");
 				mLocManager.requestLocationUpdates(
                         LocationManager.GPS_PROVIDER, 
                         mGpsScanInterval, 0, this);
 				mGPSRunning = true;
 			}
+            else
+            {
+                Log.i(TAG, "Continue scanning GPS.");
+            }
+
+
 			return;
     	}
     	
@@ -637,6 +644,12 @@ public class WiFiGPSLocationService
                             mGpsScanInterval, 0, this);
 					mGPSRunning = true;
 				}
+                else
+                {
+                    Log.i(TAG, "Continue scanning GPS.");
+                }
+
+
 	    	}
 			else if (record.count > SIGNIFICANCE_THRESHOLD)
 			{
@@ -668,14 +681,21 @@ public class WiFiGPSLocationService
 					mLocManager.removeUpdates(this);
 					mGPSRunning = false;
 				}
+                else
+                {
+                    Log.i(TAG, "Continue scanning GPS.");
+                }
+
 			}
 		}
 		else
 		{
-			Log.i(TAG, "Found a new WiFi set:" + wifiSet.toString());
+			Log.i(TAG, "New WiFi set.");
 			//Schedule a GPS scan
 			record = new GPSInfo(false, curTime);
 			mScanCache.put(key, record);
+            Log.i(TAG, "Created new cache entry: " +
+                    record.toString());
 			if (!mGPSRunning)
 			{
 				Log.i(TAG, "Starting GPS.");
@@ -684,6 +704,10 @@ public class WiFiGPSLocationService
                         mGpsScanInterval, 0, this);
 				mGPSRunning = true;
 			}
+            else
+            {
+                Log.i(TAG, "Continue scanning GPS.");
+            }
 		}
     	
     	mLastWifiSet = key;
