@@ -681,10 +681,6 @@ public class WiFiGPSLocationService
 					mLocManager.removeUpdates(this);
 					mGPSRunning = false;
 				}
-                else
-                {
-                    Log.i(TAG, "Continue scanning GPS.");
-                }
 
 			}
 		}
