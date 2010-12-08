@@ -397,12 +397,22 @@ public class WiFiGPSLocationService
             mClientCount++;
 			if (!mRun)
 			{
+				mRun = true;
 				setupWiFi();
 				
-				mHandler.sendMessageAtTime( 
-	        			mHandler.obtainMessage( WIFI_SCAN_TIMER_MSG), 
-	        			SystemClock.uptimeMillis());
-				mRun = true;
+		        //Send a message to schedule the first scan
+                if (!mHandler.hasMessage( WIFI_SCAN_TIMER_MSG ))
+                    mHandler.sendMessageAtTime( 
+                            mHandler.obtainMessage( WIFI_SCAN_TIMER_MSG), 
+                            SystemClock.uptimeMillis());
+
+                // Start running GPS to get current location ASAP
+                Log.i(TAG, "Starting GPS.");
+                mLocManager.requestLocationUpdates(
+                        LocationManager.GPS_PROVIDER, 
+                        mGpsScanInterval, 0, this);
+                mGPSRunning = true;
+
 			}
 		}
 		
@@ -942,27 +952,11 @@ public class WiFiGPSLocationService
 		registerReceiver(mWifiScanReceiver, new IntentFilter(
 				WifiManager.WIFI_STATE_CHANGED_ACTION));
 		
-		//Send a message to schedule the first scan
-        mHandler.sendMessageAtTime( 
-        		mHandler.obtainMessage(WIFI_SCAN_TIMER_MSG), 
-        		SystemClock.uptimeMillis() + mWifiScanInterval);
-        
         mHandler.sendMessageAtTime(
         		mHandler.obtainMessage(CACHE_CLEANUP_TIMER_MSG),
         		SystemClock.uptimeMillis() + CLEANUP_INTERVAL);
 
-		//The services is running by default. Stop() needs to be called
-		//to stop it.
-		mRun = true;
 		
-		
-		// Start running GPS to get current location ASAP
-		Log.i(TAG, "Starting GPS.");
-		mLocManager.requestLocationUpdates(
-                LocationManager.GPS_PROVIDER, 
-                mGpsScanInterval, 0, this);
-		mGPSRunning = true;
-
     }
     
     @Override
@@ -1071,9 +1065,12 @@ public class WiFiGPSLocationService
         if (!mWifi.isWifiEnabled())
         	mWifi.setWifiEnabled(true);
         
-        mWifiLock = mWifi.createWifiLock(
-                WifiManager.WIFI_MODE_SCAN_ONLY, TAG);
-        mWifiLock.acquire();
+        if (mWifi == null)
+            mWifiLock = mWifi.createWifiLock(
+                    WifiManager.WIFI_MODE_SCAN_ONLY, TAG);
+
+        if (!mWifiLock.isHeld())
+            mWifiLock.acquire();
     }
     
     /*
