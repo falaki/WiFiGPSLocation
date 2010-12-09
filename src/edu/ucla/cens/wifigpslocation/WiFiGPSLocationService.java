@@ -1065,11 +1065,18 @@ public class WiFiGPSLocationService
         	mWifi.setWifiEnabled(true);
         
         if (mWifi == null)
+        {
             mWifiLock = mWifi.createWifiLock(
                     WifiManager.WIFI_MODE_SCAN_ONLY, TAG);
-
-        if (!mWifiLock.isHeld())
+            if (!mWifiLock.isHeld())
+                mWifiLock.acquire();
+        }
+        else
+        {
+            mWifiLock = mWifi.createWifiLock(
+                    WifiManager.WIFI_MODE_SCAN_ONLY, TAG);
             mWifiLock.acquire();
+        }
     }
     
     /*
