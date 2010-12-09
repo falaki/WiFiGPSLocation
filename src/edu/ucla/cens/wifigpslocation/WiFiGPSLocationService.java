@@ -401,7 +401,7 @@ public class WiFiGPSLocationService
 				setupWiFi();
 				
 		        //Send a message to schedule the first scan
-                if (!mHandler.hasMessage( WIFI_SCAN_TIMER_MSG ))
+                if (!mHandler.hasMessages( WIFI_SCAN_TIMER_MSG ))
                     mHandler.sendMessageAtTime( 
                             mHandler.obtainMessage( WIFI_SCAN_TIMER_MSG), 
                             SystemClock.uptimeMillis());
@@ -410,7 +410,7 @@ public class WiFiGPSLocationService
                 Log.i(TAG, "Starting GPS.");
                 mLocManager.requestLocationUpdates(
                         LocationManager.GPS_PROVIDER, 
-                        mGpsScanInterval, 0, this);
+                        mGpsScanInterval, 0, WiFiGPSLocationService.this);
                 mGPSRunning = true;
 
 			}
