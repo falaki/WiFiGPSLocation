@@ -603,8 +603,7 @@ public class WiFiGPSLocationService
     	{
     		if (!mScanCache.get(mLastWifiSet).known)
     		{
-	    		Log.i(TAG, "Concluded no lock for ["
-                        + mLastWifiSet + "]");
+	    		Log.i(TAG, "Concluded no lock for last WiFi set");
 	    		
 	    		mScanCache.get(mLastWifiSet).known = true;
     		}
