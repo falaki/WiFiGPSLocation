@@ -56,24 +56,24 @@ public class WiFiGPSLocationService
     extends Service 
     implements LocationListener 
 {
-	/** name of the service used for debug bridge */
-	private static final String TAG = "WiFiGPSLocationService";
-	
-	/** Version of this service */
-	public static final String VER = "1.0";
-	
-	/** State variable indicating if the services should run or not */
-	private boolean mRun;
+    /** name of the service used for debug bridge */
+    private static final String TAG = "WiFiGPSLocationService";
 
-	/** Operational power consumption regime variable*/
-	private int mRegime;
+    /** Version of this service */
+    public static final String VER = "1.0";
+
+    /** State variable indicating if the services should run or not */
+    private boolean mRun;
+
+    /** Operational power consumption regime variable*/
+    private int mRegime;
 
     /** DB Adaptor */
     private DbAdaptor mDbAdaptor;
 
-	
-	/** State variable indicating if the GPS location is being used */
-	private boolean mGPSRunning;
+
+    /** State variable indicating if the GPS location is being used */
+    private boolean mGPSRunning;
 
     /** Counter for the number of connected clients */
     private int mClientCount = 0;
@@ -89,56 +89,53 @@ public class WiFiGPSLocationService
     private IAccelService mAccelService;
     private boolean mAccelConnected;
 
-	
-	/** Operational power consumption regime constant values*/
-	public static final int REGIME_RELAXED = 0;
-	public static final int REGIME_CONTROLLED = 1;
-	
-	/** Types of messages used by this service */
-	private static final int WIFI_SCAN_TIMER_MSG = 1;
-	private static final int CACHE_CLEANUP_TIMER_MSG = 2;
-	private static final int LOC_UPDATE_MSG = 3;
 
-	
-	/** Time unit constants */
-	private static final int ONE_SECOND = 1000;
-	private static final int ONE_MINUTE = 60 * ONE_SECOND;
-	private static final int ONE_HOUR = 60 * ONE_MINUTE; 
-	private static final int ONE_DAY = 24 * ONE_HOUR;
-	
-	/** Default timers in milliseconds*/
-	private static final int DEFAULT_WIFI_SCANNING_INTERVAL 
-        = 2 * ONE_MINUTE; // Two minutes
-	private static final int DEFAULT_GPS_SCANNING_INTERVAL 
-        = 60 * ONE_SECOND; // One minute
-	private static final int CLEANUP_INTERVAL 
-        = ONE_HOUR; // One hour
-	
+    /** Operational power consumption regime constant values*/
+    public static final int REGIME_RELAXED = 0;
+    public static final int REGIME_CONTROLLED = 1;
+
+    /** Types of messages used by this service */
+    private static final int WIFI_SCAN_TIMER_MSG = 1;
+    private static final int CACHE_CLEANUP_TIMER_MSG = 2;
+    private static final int LOC_UPDATE_MSG = 3;
+
+
+    /** Time unit constants */
+    private static final int ONE_SECOND = 1000;
+    private static final int ONE_MINUTE = 60 * ONE_SECOND;
+    private static final int ONE_HOUR = 60 * ONE_MINUTE; 
+    private static final int ONE_DAY = 24 * ONE_HOUR;
+
+    /** Default timers in milliseconds*/
+    private static final int DEFAULT_WIFI_SCANNING_INTERVAL = 2 * ONE_MINUTE; 
+    private static final int DEFAULT_GPS_SCANNING_INTERVAL = 60 * ONE_SECOND; 
+    private static final int CLEANUP_INTERVAL = ONE_HOUR; 
+
     private static final int LOC_UPDATE_TIMEOUT = 5 * ONE_SECOND;
-	private static final int CACHE_TIMEOUT 
-        = 3 * ONE_DAY; // Three days
-	private static final int EXTENTION_TIME 
-        = 10 * ONE_MINUTE; // Ten minutes
-	
-	private static final int SIGNAL_THRESHOLD 
-        = -80;
-    private static final double GPS_ACCURACY_THRESHOLD 
-        = 10.0;
-	private static final int SIGNIFICANCE_THRESHOLD 
-        = 3;
-    
+    private static final int CACHE_TIMEOUT = 3 * ONE_DAY; 
+    private static final int EXTENTION_TIME = 10 * ONE_MINUTE;
+
+
+    /** Threshold values */
+    private static final int SIGNAL_THRESHOLD = -80;
+    private static final double GPS_ACCURACY_THRESHOLD = 10.0;
+    private static final int SIGNIFICANCE_THRESHOLD = 3;
+
     /** WiFi object used for scanning */
     private WifiManager mWifi;
-    
+
+    /** WiFi wake lock object */
     private WifiLock mWifiLock;
-    
+
+    /** Location manager object to receive location objects */
     private LocationManager mLocManager;
-    
+
+    /** MessageDigest object to compute MD5 hash */
     private MessageDigest mDigest;
-    
+
     /** Map of WiFi scan results to to GPS availability */ 
     private HashMap<String, GPSInfo> mScanCache;
-    
+
     /** The last known location object */
     private Location mLastKnownLoc;
 
@@ -150,11 +147,11 @@ public class WiFiGPSLocationService
 
     /** Fake location object */
     private Location mFakeLocation;
-    
+
     /** Scanning interval variable */
     private int mWifiScanInterval;
     private int mGpsScanInterval;
-    
+
     //private NotificationManager mNotificationManager;
     
     private final IWiFiGPSLocationServiceControl.Stub mControlBinder 
@@ -260,36 +257,35 @@ public class WiFiGPSLocationService
     	
     };
 	
-	private final IWiFiGPSLocationService.Stub mBinder 
-        = new IWiFiGPSLocationService.Stub()
+    private final IWiFiGPSLocationService.Stub mBinder = new IWiFiGPSLocationService.Stub()
+    {
+
+        /**
+         * Returns the current location. 
+         * If the service is not active, this call will activate it.
+         *
+         * @return		the last known location
+         */
+        public Location getLocation ()
         {
-		
-		/**
-		 * Returns the current location. 
-		 * If the service is not active, this call will activate it.
-		 *
-		 * @return		the last known location
-		 */
-		public Location getLocation ()
-		{
-			if (!mRun)
-				start();
-			
-			return mLastKnownLoc;
-		}
-		
-		/**
-		 * Change the GPS sampling interval. 
-		 * 
-		 * @param		interval	GPS sampling interval in milliseconds
-		 */
-		public int suggestInterval (int interval)
-		{
-			if (mRegime == REGIME_RELAXED)
-				mGpsScanInterval = interval;
-			
-			return mGpsScanInterval;
-		}
+            if (!mRun)
+                start();
+
+            return mLastKnownLoc;
+        }
+
+        /**
+         * Change the GPS sampling interval. 
+         * 
+         * @param		interval	GPS sampling interval in milliseconds
+         */
+        public int suggestInterval (int interval)
+        {
+            if (mRegime == REGIME_RELAXED)
+                mGpsScanInterval = interval;
+
+            return mGpsScanInterval;
+        }
 
 
         /**
@@ -297,8 +293,7 @@ public class WiFiGPSLocationService
          *
          *
          */
-        public void registerCallback(ILocationChangedCallback callback, 
-                double threshold)
+        public void registerCallback(ILocationChangedCallback callback, double threshold)
         {
             if (callback != null)
             {
@@ -323,21 +318,19 @@ public class WiFiGPSLocationService
                 Log.i(TAG, "Not connected to AccelService");
             }
 
-        
+
         }
 
         /**
          * Unregisters the callback
          *
          */
-        public void unregisterCallback(ILocationChangedCallback
-                callback)
+        public void unregisterCallback(ILocationChangedCallback callback)
         {
             if (callback != null)
             {
                 mCallbacks.unregister(callback);
                 mCallbackCount--;
-
             }
 
             if ((mCallbackCount == 0) && mAccelConnected)
@@ -360,18 +353,18 @@ public class WiFiGPSLocationService
 
         }
 
-		/**
-		 * Puts the WiFiGPSLocationService in an "inactive" mode.
+        /**
+         * Puts the WiFiGPSLocationService in an "inactive" mode.
          * Cancels are pending scans and sets the Run flag to stop.
          * The Android service is still running and can receive calls,
          * but it does not perform any energy consuming tasks.
-		 * 
-		 */
-		public void stop ()
-		{
+         * 
+         */
+        public void stop ()
+        {
             mClientCount--;
             Log.i(TAG, "Received a stop() call");
-			
+
             if (mClientCount <= 0)
             {
                 Log.i(TAG, "Stoping operations");
@@ -385,40 +378,40 @@ public class WiFiGPSLocationService
                 Log.i(TAG, "Continuing operations");
             }
 
-		}
+        }
 
-		/**
-		 * Starts the WiFiGPSLocationService.
-		 * Schedules a new scan message and sets the Run flag to true.
-		 */
-		public void start ()
-		{			
+        /**
+         * Starts the WiFiGPSLocationService.
+         * Schedules a new scan message and sets the Run flag to true.
+         */
+        public void start ()
+        {			
             Log.i(TAG, "Received a start() call");
             mClientCount++;
-			if (!mRun)
-			{
-				mRun = true;
-				setupWiFi();
-				
-		        //Send a message to schedule the first scan
+            if (!mRun)
+            {
+                mRun = true;
+                setupWiFi();
+
+                //Send a message to schedule the first scan
                 if (!mHandler.hasMessages( WIFI_SCAN_TIMER_MSG ))
                     mHandler.sendMessageAtTime( 
-                            mHandler.obtainMessage( WIFI_SCAN_TIMER_MSG), 
-                            SystemClock.uptimeMillis());
+                    mHandler.obtainMessage( WIFI_SCAN_TIMER_MSG), 
+                    SystemClock.uptimeMillis());
 
                 // Start running GPS to get current location ASAP
                 Log.i(TAG, "Starting GPS.");
                 mLocManager.requestLocationUpdates(
-                        LocationManager.GPS_PROVIDER, 
-                        mGpsScanInterval, 0, WiFiGPSLocationService.this);
+                    LocationManager.GPS_PROVIDER, 
+                    mGpsScanInterval, 0, WiFiGPSLocationService.this);
+
                 mGPSRunning = true;
+            }
+        }
 
-			}
-		}
-		
 
-	};
-	
+    };
+
 	
     /**
      * Broadcast receiver for WiFi scan updates.
@@ -428,130 +421,124 @@ public class WiFiGPSLocationService
      */
     private BroadcastReceiver mWifiScanReceiver = new BroadcastReceiver() 
     {
-    	@Override
+        @Override
         public void onReceive(Context context, Intent intent) 
-    	{
-    		String action = intent.getAction();
-    		
-    		
-    		if (action.equals(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION))
-    		{
-	    		List<ScanResult> results = mWifi.getScanResults();
-
-	    		Log.v(TAG, "WiFi scan found " + results.size() 
-                        + " APs");
-	
-	    		List<String> sResult = new ArrayList<String>();
-	    		
-	    		for (ScanResult result : results)
-	    		{
-	    			//It seems APs with higher signal strengths are
-                    //more stable.  So I am ignoring weak APs.
-	    			if (result.level > SIGNAL_THRESHOLD)
-	    				sResult.add(result.BSSID);
-
-                    Log.v(TAG, result.BSSID + " (" + result.level 
-                            + "dBm)");
-	    		}
-	    	
-	    		Log.v(TAG, "Filtered " 
-                        + (results.size() - sResult.size()) 
-                        + " APs.");
-	    		    		
-	    		Collections.sort(sResult);
-	    		updateLocation(sResult);
-    		}
-    		else if (action.equals( 
-                        WifiManager.WIFI_STATE_CHANGED_ACTION)) 
-    		{
-    			int wifiState = (int) 
-                    intent.getIntExtra(WifiManager.EXTRA_WIFI_STATE, 0);
-    			if (wifiState == WifiManager.WIFI_STATE_DISABLED)
-    			{
-	    			Log.v(TAG, "User disabeled Wifi." +
-                            " Setting up WiFi again");
-	    			setupWiFi();
-    			}
-    		}
-	    		
-    	}
-    };
-    
-
-		
-	public synchronized void onLocationChanged(Location location) {
-        double accuracy =  location.getAccuracy();
-		Log.i(TAG, "Received location update. Accuracy: " + accuracy);
-
-        if ( accuracy < GPS_ACCURACY_THRESHOLD)
         {
+            String action = intent.getAction();
 
-            mHandler.removeMessages(LOC_UPDATE_MSG);
-            mLastKnownLoc = location;
-            
-            if (mScanCache.containsKey(mLastWifiSet))
+
+            if (action.equals(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION))
             {
-                if (!mScanCache.get(mLastWifiSet).known)
+                List<ScanResult> results = mWifi.getScanResults();
+
+                Log.v(TAG, "WiFi scan found " + results.size() + " APs");
+
+                List<String> sResult = new ArrayList<String>();
+
+            for (ScanResult result : results)
+            {
+                //It seems APs with higher signal strengths are
+                //more stable.  So I am ignoring weak APs.
+                if (result.level > SIGNAL_THRESHOLD)
+                    sResult.add(result.BSSID);
+
+                Log.v(TAG, result.BSSID + " (" + result.level + "dBm)");
+            }
+
+            Log.v(TAG, "Filtered " 
+                + (results.size() - sResult.size()) 
+                + " APs.");
+
+            Collections.sort(sResult);
+            updateLocation(sResult);
+            }
+            else if (action.equals( 
+                        WifiManager.WIFI_STATE_CHANGED_ACTION)) 
+            {
+                int wifiState = (int) 
+                intent.getIntExtra(WifiManager.EXTRA_WIFI_STATE, 0);
+                if (wifiState == WifiManager.WIFI_STATE_DISABLED)
                 {
-                    Log.i(TAG, "Updating the record: " + 
-                            cacheEntry(mLastWifiSet));
-                    mScanCache.get(mLastWifiSet).known = true;
-                    mScanCache.get(mLastWifiSet).loc = location;
-                    mLastKnownLoc = location;
-                }
-                else
-                {
-                    Log.v(TAG, "There is a valid record. "  
-                            + "but still updating " 
-                            + cacheEntry(mLastWifiSet) );
-                    mScanCache.get(mLastWifiSet).loc = location;
-                    mLastKnownLoc = location;				
+                    Log.v(TAG, "User disabeled Wifi." +
+                        " Setting up WiFi again");
+                        setupWiFi();
                 }
             }
+
         }
-        else
+    };
+
+
+
+public synchronized void onLocationChanged(Location location) 
+{
+    double accuracy =  location.getAccuracy();
+    Log.i(TAG, "Received location update. Accuracy: " + accuracy);
+
+    if ( accuracy < GPS_ACCURACY_THRESHOLD)
+    {
+
+        mHandler.removeMessages(LOC_UPDATE_MSG);
+        mLastKnownLoc = location;
+
+        if (mScanCache.containsKey(mLastWifiSet))
         {
-            //Log.v(TAG, "Not accurate enough.");
-            mTempKnownLoc = location;
-            mHandler.removeMessages(LOC_UPDATE_MSG);
-            mHandler.sendMessageAtTime(
-                    mHandler.obtainMessage(LOC_UPDATE_MSG),
-                    SystemClock.uptimeMillis() + LOC_UPDATE_TIMEOUT);
-
+            if (!mScanCache.get(mLastWifiSet).known)
+            {
+                Log.i(TAG, "Updating the record: " + 
+                cacheEntry(mLastWifiSet));
+                mScanCache.get(mLastWifiSet).known = true;
+                mScanCache.get(mLastWifiSet).loc = location;
+                mLastKnownLoc = location;
+            }
+            else
+            {
+                Log.v(TAG, "There is a valid record. "  
+                    + "but still updating " 
+                    + cacheEntry(mLastWifiSet) );
+                mScanCache.get(mLastWifiSet).loc = location;
+                mLastKnownLoc = location;				
+            }
         }
-	}
-	
-	//@Override
-	public void onStatusChanged(String provider, int status, Bundle extras) 
+    }
+    else
     {
-		// TODO Auto-generated method stub
-		
-	}
-	
-	//@Override
-	public void onProviderEnabled(String provider) 
-    {
-		// TODO Auto-generated method stub
-		
-	}
-	
-	//@Override
-	public void onProviderDisabled(String provider) 
-    {
-		// TODO Auto-generated method stub
-		
-	}
+        //Log.v(TAG, "Not accurate enough.");
+        mTempKnownLoc = location;
+        mHandler.removeMessages(LOC_UPDATE_MSG);
+        mHandler.sendMessageAtTime(
+        mHandler.obtainMessage(LOC_UPDATE_MSG),
+        SystemClock.uptimeMillis() + LOC_UPDATE_TIMEOUT);
 
-		
+    }
+}
+	
+    public void onStatusChanged(String provider, 
+            int status, Bundle extras) 
+    {
+        // TODO Auto-generated method stub
 
+    }
+        
+    public void onProviderEnabled(String provider) 
+    {
+        // TODO Auto-generated method stub
+
+    }
+
+    public void onProviderDisabled(String provider) 
+    {
+        // TODO Auto-generated method stub
+
+    }
     
     private synchronized void updateLocation(List<String> wifiSet)
     {
-    	long curTime = System.currentTimeMillis();
-    	GPSInfo record;
-    	byte[] byteKey = mDigest.digest(wifiSet.toString().getBytes());
-    	String key = new String(byteKey);
-    	
+        long curTime = System.currentTimeMillis();
+        GPSInfo record;
+        byte[] byteKey = mDigest.digest(wifiSet.toString().getBytes());
+        String key = new String(byteKey);
+
 
         Log.v(TAG, "Updating cache for: " + wifiSet.toString());
 
@@ -586,137 +573,142 @@ public class WiFiGPSLocationService
                     }
                     catch (RemoteException re)
                     {
-                        Log.e(TAG, "Exception when calling AccelService",
-                              re);
+                        Log.e(TAG, "Exception when calling AccelService", 
+                                re);
                     }
                 }
 
+                }
+                mCallbacks.finishBroadcast();
+
             }
-            mCallbacks.finishBroadcast();
-
-        }
 
 
-    	
-    	
-    	if (mScanCache.containsKey(mLastWifiSet))
-    	{
-    		if (!mScanCache.get(mLastWifiSet).known)
-    		{
-	    		Log.i(TAG, "Concluded no lock for last WiFi set");
-	    		
-	    		mScanCache.get(mLastWifiSet).known = true;
-    		}
-    	}
-    	
-    	
-    	// First thing, if the set is "empty", I am at a location with
-        // no WiFi coverage. We default to GPS scanning in such
-        // situations. So turn on GPS and return
-    	if (wifiSet.size() == 0)
-    	{
-            Log.i(TAG, "No WiFi AP found.");
-			if (!mGPSRunning)
-			{
-				Log.i(TAG, "Starting GPS.");
-				mLocManager.requestLocationUpdates(
-                        LocationManager.GPS_PROVIDER, 
-                        mGpsScanInterval, 0, this);
-				mGPSRunning = true;
-			}
-            else
+            if (mScanCache.containsKey(mLastWifiSet))
             {
-                Log.i(TAG, "Continue scanning GPS.");
+                if (!mScanCache.get(mLastWifiSet).known)
+                {
+                    Log.i(TAG, "Concluded no lock for last WiFi set");
+                    mScanCache.get(mLastWifiSet).known = true;
+                }
             }
 
 
-			return;
-    	}
-    	
-    	
-    	Log.v(TAG, "Current cache has " + mScanCache.size() + " entries.");
-    	
-    	if (mScanCache.containsKey(key))
-    	{
-    		mScanCache.get(key).increment();
-			record = mScanCache.get(key);
-			Log.i(TAG, "Found a record: " + record.toString());
-			
-	    	if (record.count <= SIGNIFICANCE_THRESHOLD)
-	    	{
-	    		Log.i(TAG, "Not significant yet. Still need to run GPS.");
-				if (!mGPSRunning)
-				{
-					Log.i(TAG, "Starting GPS.");
-					mLocManager.requestLocationUpdates(
-                            LocationManager.GPS_PROVIDER, 
-                            mGpsScanInterval, 0, this);
-					mGPSRunning = true;
-				}
+            // First thing, if the set is "empty", I am at a location with
+            // no WiFi coverage. We default to GPS scanning in such
+            // situations. So turn on GPS and return
+            if (wifiSet.size() == 0)
+            {
+                Log.i(TAG, "No WiFi AP found.");
+                if (!mGPSRunning)
+                {
+                    Log.i(TAG, "Starting GPS.");
+                    mLocManager.requestLocationUpdates(
+                    LocationManager.GPS_PROVIDER, 
+                    mGpsScanInterval, 0, this);
+                    mGPSRunning = true;
+                }
                 else
                 {
                     Log.i(TAG, "Continue scanning GPS.");
                 }
+                return;
+            }
 
 
-	    	}
-			else if (record.count > SIGNIFICANCE_THRESHOLD)
-			{
-				
-                Log.i(TAG, "Significant record.");
-				// update the time stamp of the last known GPS location
-				if (record.loc != null)
-				{
-                    // If the matching record has a location object use
-                    // that
-                    Log.v(TAG, "Using known location.");
-					mLastKnownLoc = record.loc;
-				}
-                else
+            Log.v(TAG, "Current cache has " 
+                    + mScanCache.size() 
+                    + " entries.");
+
+            if (mScanCache.containsKey(key))
+            {
+                mScanCache.get(key).increment();
+                record = mScanCache.get(key);
+                Log.i(TAG, "Found a record: " 
+                        + record.toString());
+
+                if (record.count <= SIGNIFICANCE_THRESHOLD)
                 {
-                    // If the matching record does not have a location
-                    // object
-                    Log.i(TAG, "Using fake location.");
-                    mLastKnownLoc = mFakeLocation;
-                }
-                
-				
-				mLastKnownLoc.setTime(curTime);
-				mLastKnownLoc.setSpeed(0);
-				
-				if (mGPSRunning)
-				{
-					Log.i(TAG, "Stop scanning GPS" );
-					mLocManager.removeUpdates(this);
-					mGPSRunning = false;
-				}
+                    Log.i(TAG, "Not significant yet. "
+                           + "Still need to run GPS.");
 
-			}
-		}
-		else
-		{
-			Log.i(TAG, "New WiFi set.");
-			//Schedule a GPS scan
-			record = new GPSInfo(false, curTime);
-			mScanCache.put(key, record);
-            Log.i(TAG, "Created new cache entry: " +
-                    record.toString());
-			if (!mGPSRunning)
-			{
-				Log.i(TAG, "Starting GPS.");
-				mLocManager.requestLocationUpdates(
-                        LocationManager.GPS_PROVIDER, 
-                        mGpsScanInterval, 0, this);
-				mGPSRunning = true;
-			}
+                    if (!mGPSRunning)
+                    {
+                        Log.i(TAG, "Starting GPS.");
+                        mLocManager.requestLocationUpdates( 
+                                LocationManager.GPS_PROVIDER, 
+                                mGpsScanInterval, 0, this);
+
+                        mGPSRunning = true;
+                    }
+                    else
+                    {
+                        Log.i(TAG, "Continue scanning GPS.");
+                    }
+
+                }
+                else if (record.count > SIGNIFICANCE_THRESHOLD)
+                {
+
+                    Log.i(TAG, "Significant record.");
+
+                    // update the time stamp of the 
+                    // last known GPS location
+                    if (record.loc != null)
+                    {
+                        // If the matching record has a 
+                        // location object use that
+                        Log.v(TAG, "Using known location.");
+                        mLastKnownLoc = record.loc;
+                    }
+                    else
+                    {
+                        // If the matching record does not 
+                        // have a location object
+                        Log.i(TAG, "Using fake location.");
+                        mLastKnownLoc = mFakeLocation;
+                    }
+
+
+                    mLastKnownLoc.setTime(curTime);
+                    mLastKnownLoc.setSpeed(0);
+
+                    if (mGPSRunning)
+                    {
+                        Log.i(TAG, "Stop scanning GPS" );
+                        mLocManager.removeUpdates(this);
+                        mGPSRunning = false;
+                    }
+
+                }
+            }
             else
             {
-                Log.i(TAG, "Continue scanning GPS.");
+                Log.i(TAG, "New WiFi set.");
+
+                // Schedule a GPS scan
+                record = new GPSInfo(false, curTime);
+                mScanCache.put(key, record);
+                Log.i(TAG, "Created new cache entry: " 
+                        + record.toString());
+
+                if (!mGPSRunning)
+                {
+                    Log.i(TAG, "Starting GPS.");
+                    mLocManager.requestLocationUpdates(
+                            LocationManager.GPS_PROVIDER, 
+                            mGpsScanInterval, 0, this);
+
+                    mGPSRunning = true;
+                }
+                else
+                {
+                    Log.i(TAG, "Continue scanning GPS.");
+                }
             }
-		}
-    	
-    	mLastWifiSet = key;
-    	
+
+        mLastWifiSet = key;
+
     }
     
     /**
@@ -730,26 +722,28 @@ public class WiFiGPSLocationService
             if (msg.what == WIFI_SCAN_TIMER_MSG)
             {
                 mWifi.startScan();
-                
+
                 if (mRun)
-                	mHandler.sendMessageAtTime( 
-                			mHandler.obtainMessage( WIFI_SCAN_TIMER_MSG), 
-                			SystemClock.uptimeMillis() 
+                    mHandler.sendMessageAtTime( 
+                            mHandler.obtainMessage( WIFI_SCAN_TIMER_MSG), 
+                            SystemClock.uptimeMillis() 
                             + mWifiScanInterval);
             }
             else if (msg.what == CACHE_CLEANUP_TIMER_MSG)
             {
-            	cleanCache();
-            	if (mRun)
+                cleanCache();
+                if (mRun)
                     mHandler.sendMessageAtTime(
-                    		mHandler.obtainMessage(CACHE_CLEANUP_TIMER_MSG
-                                ),
-                    		SystemClock.uptimeMillis() + CLEANUP_INTERVAL);
+                            mHandler.obtainMessage(
+                                CACHE_CLEANUP_TIMER_MSG),
+                            SystemClock.uptimeMillis() + CLEANUP_INTERVAL);
             }
             else if (msg.what == LOC_UPDATE_MSG)
             {
                 Log.i(TAG, "Dealing with inaccurate location. "
-                        + "Accuracy: " + mTempKnownLoc.getAccuracy());
+                        + "Accuracy: " 
+                        + mTempKnownLoc.getAccuracy());
+
                 mLastKnownLoc = mTempKnownLoc;
 
                 if (mScanCache.containsKey(mLastWifiSet))
@@ -760,7 +754,7 @@ public class WiFiGPSLocationService
                                 cacheEntry(mLastWifiSet));
                         mScanCache.get(mLastWifiSet).known = true;
                         mScanCache.get(mLastWifiSet).loc =
-                            mTempKnownLoc;
+                        mTempKnownLoc;
                     }
                 }
                 else
@@ -770,9 +764,8 @@ public class WiFiGPSLocationService
             }
 
         }
-
     };
-    
+
     
     /** 
      * Finds records in the cache that have been timed out.
@@ -804,8 +797,8 @@ public class WiFiGPSLocationService
     		{
     			if (curTime - cacheTime > ONE_HOUR)
     			{
-    				Log.v(TAG, "Marking transient record for deletion: " + 
-                            record.toString());
+    				Log.v(TAG, "Marking transient record for deletion: " 
+                            + record.toString());
     				toBeDeleted.add(key);
     			}
     		} 
@@ -835,7 +828,8 @@ public class WiFiGPSLocationService
 
 
     private ServiceConnection mAccelServiceConnection 
-        = new ServiceConnection() {
+            = new ServiceConnection() 
+    {
         public void onServiceConnected(ComponentName className,
                 IBinder service)
         {
@@ -880,7 +874,8 @@ public class WiFiGPSLocationService
     }
 	
     @Override
-    public void onCreate() {
+    public void onCreate() 
+    {
         super.onCreate();
 
         bindService(new Intent(ISystemLog.class.getName()),
@@ -944,16 +939,16 @@ public class WiFiGPSLocationService
         setupWiFi();
         
         //Register to receive WiFi scans 
-		registerReceiver(mWifiScanReceiver, new IntentFilter(
-				WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
-		
-		//Register to receive WiFi state changes
-		registerReceiver(mWifiScanReceiver, new IntentFilter(
-				WifiManager.WIFI_STATE_CHANGED_ACTION));
-		
-        mHandler.sendMessageAtTime(
-        		mHandler.obtainMessage(CACHE_CLEANUP_TIMER_MSG),
-        		SystemClock.uptimeMillis() + CLEANUP_INTERVAL);
+        registerReceiver(mWifiScanReceiver, new IntentFilter( 
+                    WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
+
+        //Register to receive WiFi state changes
+        registerReceiver(mWifiScanReceiver, new IntentFilter( 
+                    WifiManager.WIFI_STATE_CHANGED_ACTION));
+
+        mHandler.sendMessageAtTime( 
+                mHandler.obtainMessage(CACHE_CLEANUP_TIMER_MSG), 
+                SystemClock.uptimeMillis() + CLEANUP_INTERVAL);
 
 		
     }
