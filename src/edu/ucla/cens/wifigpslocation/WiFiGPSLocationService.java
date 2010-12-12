@@ -101,19 +101,19 @@ public class WiFiGPSLocationService
 
 
     /** Time unit constants */
-    private static final int ONE_SECOND = 1000;
-    private static final int ONE_MINUTE = 60 * ONE_SECOND;
-    private static final int ONE_HOUR = 60 * ONE_MINUTE; 
-    private static final int ONE_DAY = 24 * ONE_HOUR;
+    private static final long ONE_SECOND = 1000;
+    private static final long ONE_MINUTE = 60 * ONE_SECOND;
+    private static final long ONE_HOUR = 60 * ONE_MINUTE; 
+    private static final long ONE_DAY = 24 * ONE_HOUR;
 
     /** Default timers in milliseconds*/
-    private static final int DEFAULT_WIFI_SCANNING_INTERVAL = 2 * ONE_MINUTE; 
-    private static final int DEFAULT_GPS_SCANNING_INTERVAL = 60 * ONE_SECOND; 
-    private static final int CLEANUP_INTERVAL = ONE_HOUR; 
+    private static final long DEFAULT_WIFI_SCANNING_INTERVAL = 2 * ONE_MINUTE; 
+    private static final long DEFAULT_GPS_SCANNING_INTERVAL = 60 * ONE_SECOND; 
+    private static final long CLEANUP_INTERVAL = ONE_HOUR; 
 
-    private static final int LOC_UPDATE_TIMEOUT = 5 * ONE_SECOND;
-    private static final int CACHE_TIMEOUT = 3 * ONE_DAY; 
-    private static final int EXTENTION_TIME = 10 * ONE_MINUTE;
+    private static final long LOC_UPDATE_TIMEOUT = 5 * ONE_SECOND;
+    private static final long CACHE_TIMEOUT = 3 * ONE_DAY; 
+    private static final long EXTENTION_TIME = ONE_HOUR;;
 
 
     /** Threshold values */
@@ -790,27 +790,26 @@ public class WiFiGPSLocationService
     		cacheTime = record.time;
     		count = record.count;
     		timeout = curTime - (cacheTime + count*EXTENTION_TIME);
-    		
-    		Log.i(TAG, "Checking " + cacheEntry(key));
-    		
+    		Log.v(TAG, "Checking " + cacheEntry(key));
+
     		if (count < SIGNIFICANCE_THRESHOLD)
     		{
     			if (curTime - cacheTime > ONE_HOUR)
     			{
-    				Log.v(TAG, "Marking transient record for deletion: " 
+    				Log.i(TAG, "Marking transient record for deletion: " 
                             + record.toString());
     				toBeDeleted.add(key);
     			}
     		} 
     		else if (timeout > CACHE_TIMEOUT )
 			{
-				Log.v(TAG, "Marking stale record for deletion: " + 
+				Log.i(TAG, "Marking stale record for deletion: " + 
                         record.toString());
 				// The cache entry has timed out. Remove it!
 				toBeDeleted.add(key);
 			}
 		}
-    	
+
     	try
     	{
 	    	for (String delKey : toBeDeleted)
@@ -823,7 +822,10 @@ public class WiFiGPSLocationService
     	{
     		Log.e(TAG, "Exception while cleaning cache.", cme);
     	}
-    	
+
+
+        mDbAdaptor.syncDb(mScanCache);
+
     }
 
 
@@ -1042,7 +1044,7 @@ public class WiFiGPSLocationService
     {
         // Check if WiFi is enabled
         if (!mWifi.isWifiEnabled())
-        	mWifi.setWifiEnabled(true);
+            mWifi.setWifiEnabled(true);
         
         if (mWifi == null)
         {
