@@ -470,48 +470,48 @@ public class WiFiGPSLocationService
 
 
 
-public synchronized void onLocationChanged(Location location) 
-{
-    double accuracy =  location.getAccuracy();
-    Log.i(TAG, "Received location update. Accuracy: " + accuracy);
-
-    if ( accuracy < GPS_ACCURACY_THRESHOLD)
+    public synchronized void onLocationChanged(Location location) 
     {
+        double accuracy =  location.getAccuracy();
+        Log.i(TAG, "Received location update. Accuracy: " + accuracy);
 
-        mHandler.removeMessages(LOC_UPDATE_MSG);
-        mLastKnownLoc = location;
-
-        if (mScanCache.containsKey(mLastWifiSet))
+        if ( accuracy < GPS_ACCURACY_THRESHOLD)
         {
-            if (!mScanCache.get(mLastWifiSet).known)
+
+            mHandler.removeMessages(LOC_UPDATE_MSG);
+            mLastKnownLoc = location;
+
+            if (mScanCache.containsKey(mLastWifiSet))
             {
-                Log.i(TAG, "Updating the record: " + 
-                cacheEntry(mLastWifiSet));
-                mScanCache.get(mLastWifiSet).known = true;
-                mScanCache.get(mLastWifiSet).loc = location;
-                mLastKnownLoc = location;
-            }
-            else
-            {
-                Log.v(TAG, "There is a valid record. "  
-                    + "but still updating " 
-                    + cacheEntry(mLastWifiSet) );
-                mScanCache.get(mLastWifiSet).loc = location;
-                mLastKnownLoc = location;				
+                if (!mScanCache.get(mLastWifiSet).known)
+                {
+                    Log.i(TAG, "Updating the record: " + 
+                    cacheEntry(mLastWifiSet));
+                    mScanCache.get(mLastWifiSet).known = true;
+                    mScanCache.get(mLastWifiSet).loc = location;
+                    mLastKnownLoc = location;
+                }
+                else
+                {
+                    Log.v(TAG, "There is a valid record. "  
+                        + "but still updating " 
+                        + cacheEntry(mLastWifiSet) );
+                    mScanCache.get(mLastWifiSet).loc = location;
+                    mLastKnownLoc = location;				
+                }
             }
         }
-    }
-    else
-    {
-        //Log.v(TAG, "Not accurate enough.");
-        mTempKnownLoc = location;
-        mHandler.removeMessages(LOC_UPDATE_MSG);
-        mHandler.sendMessageAtTime(
-        mHandler.obtainMessage(LOC_UPDATE_MSG),
-        SystemClock.uptimeMillis() + LOC_UPDATE_TIMEOUT);
+        else
+        {
+            //Log.v(TAG, "Not accurate enough.");
+            mTempKnownLoc = location;
+            mHandler.removeMessages(LOC_UPDATE_MSG);
+            mHandler.sendMessageAtTime(
+            mHandler.obtainMessage(LOC_UPDATE_MSG),
+            SystemClock.uptimeMillis() + LOC_UPDATE_TIMEOUT);
 
+        }
     }
-}
 	
     public void onStatusChanged(String provider, 
             int status, Bundle extras) 
@@ -848,22 +848,22 @@ public synchronized void onLocationChanged(Location location)
     
 
 	
-	@Override
-	public IBinder onBind(Intent intent)
-	{
-        if (IWiFiGPSLocationService.class.getName().equals(
+    @Override
+    public IBinder onBind(Intent intent)
+    {
+        if (IWiFiGPSLocationService.class.getName().equals( 
                     intent.getAction())) 
         {
             return mBinder;
         }
-        if (IWiFiGPSLocationServiceControl.class.getName().equals(
+        if (IWiFiGPSLocationServiceControl.class.getName().equals( 
                     intent.getAction())) 
         {
             return mControlBinder;
         }
-        
-		return null;		
-	}
+
+        return null;		
+    }
 
     @Override
     public void onStart(Intent intent, int startId)
@@ -967,15 +967,8 @@ public synchronized void onLocationChanged(Location location)
 		
 		// Cancel WiFi scan registration
 		unregisterReceiver(mWifiScanReceiver);
-
         unbindService(Log.SystemLogConnection);
-
-
         unbindService(mAccelServiceConnection);
-
-
-
-		
     }
 
     private void readDb()
@@ -1035,20 +1028,12 @@ public synchronized void onLocationChanged(Location location)
                 Log.i(TAG, "Entry with no location.");
             }
 
-
             gpsInfo.count = count;
-
             mScanCache.put(sign, gpsInfo);
-
             Log.i(TAG, "Synced " + gpsInfo.toString());
-
             c.moveToNext();
-
         }
-
         c.close();
-
-
     }
     
 
