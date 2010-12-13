@@ -1,3 +1,8 @@
+/**
+  * WiFiGPSLocationService
+  *
+  * Copyright (C) 2010 Center for Embedded Networked Sensing
+  */
 package edu.ucla.cens.wifigpslocation;
 
 import java.util.HashMap;
@@ -39,56 +44,40 @@ import android.database.SQLException;
 import edu.ucla.cens.systemlog.ISystemLog;
 import edu.ucla.cens.systemlog.Log;
 import edu.ucla.cens.accelservice.IAccelService;
-//import android.util.Log;
 
 
 /**
- * WiFiGPSLocationService runs as a service that continuously 
- * scans for visible WiFi access points. 
- * Based on the WiFi AP signature, it infers if
- * the user is at a location with GPS or not. If it detects that 
- * GPS is available it will constantly poll GPS with a given interval,
- * and return the last location to its clients. If the user is at a
- * location without GPS, it will return the last known GPS location to
- * clients.
+  * WiFiGPSLocation is an Android service to simplify duty-cycling of
+  * the GPS receiver when a user is not mobile. The WiFiGPSLocation
+  * application runs as an Android Service on the phone. It defines a
+  * simple interface using the Android Interface Definition Language
+  * (AIDL). All other applications get the last location of the user
+  * through this interface from WiFiGPSLocation. Unlike the default
+  * Android location API, the location API provided by WiFiGPSLocation
+  * is synchronous (i.e., a call to getLocation() is guaranteed to
+  * return immediately with the last location of the user.
+  *
+  * The WiFiGPSLocation constantly queries the GPS receiver to track
+  * the location of the user. Upon a getLocation() request, it returns
+  * the latest known location of the user. However, it tries to
+  * duty-cycle the GPS receiver when it detects the user is not
+  * mobile.  WiFiGPSLocation uses the WiFi RF fingerprint to detect
+  * when a user is not moving to turn off GPS, and when the user
+  * starts moving to turn it back on. This document outlines the
+  * design and implementation of WiFiGPSLocation, and provides
+  * instructions on how to use it in other applications.
+  *
+  * @author Hossein Falaki
  */
 public class WiFiGPSLocationService 
     extends Service 
     implements LocationListener 
 {
-    /** name of the service used for debug bridge */
+    /** Name of the service used logging tag */
     private static final String TAG = "WiFiGPSLocationService";
 
     /** Version of this service */
-    public static final String VER = "1.0";
-
-    /** State variable indicating if the services should run or not */
-    private boolean mRun;
-
-    /** Operational power consumption regime variable*/
-    private int mRegime;
-
-    /** DB Adaptor */
-    private DbAdaptor mDbAdaptor;
-
-
-    /** State variable indicating if the GPS location is being used */
-    private boolean mGPSRunning;
-
-    /** Counter for the number of connected clients */
-    private int mClientCount = 0;
-
-
-    /** List of callback objects */
-    private RemoteCallbackList<ILocationChangedCallback> mCallbacks;
-
-    /** Counter for the callbacks */
-    private int mCallbackCount = 0;
-
-    /** AccelService object */
-    private IAccelService mAccelService;
-    private boolean mAccelConnected;
-
+    public static final String VER = "2.0";
 
     /** Operational power consumption regime constant values*/
     public static final int REGIME_RELAXED = 0;
@@ -120,6 +109,33 @@ public class WiFiGPSLocationService
     private static final int SIGNAL_THRESHOLD = -80;
     private static final double GPS_ACCURACY_THRESHOLD = 10.0;
     private static final int SIGNIFICANCE_THRESHOLD = 3;
+
+    /** State variable indicating if the services is running or not */
+    private boolean mRun;
+
+    /** Operational power consumption regime variable*/
+    private int mRegime;
+
+    /** DB Adaptor */
+    private DbAdaptor mDbAdaptor;
+
+    /** State variable indicating if the GPS location is being used */
+    private boolean mGPSRunning;
+
+    /** Counter for the number of connected clients */
+    private int mClientCount = 0;
+
+    /** List of callback objects */
+    private RemoteCallbackList<ILocationChangedCallback> mCallbacks;
+
+    /** Counter for the callbacks */
+    private int mCallbackCount = 0;
+
+    /** AccelService object */
+    private IAccelService mAccelService;
+    private boolean mAccelConnected;
+
+
 
     /** WiFi object used for scanning */
     private WifiManager mWifi;
