@@ -90,19 +90,19 @@ public class WiFiGPSLocationService
 
 
     /** Time unit constants */
-    private static final long ONE_SECOND = 1000;
-    private static final long ONE_MINUTE = 60 * ONE_SECOND;
-    private static final long ONE_HOUR = 60 * ONE_MINUTE; 
-    private static final long ONE_DAY = 24 * ONE_HOUR;
+    private static final int  ONE_SECOND = 1000;
+    private static final int  ONE_MINUTE = 60 * ONE_SECOND;
+    private static final int  ONE_HOUR = 60 * ONE_MINUTE; 
+    private static final int  ONE_DAY = 24 * ONE_HOUR;
 
-    /** Default timers in milliseconds*/
-    private static final long DEFAULT_WIFI_SCANNING_INTERVAL = 2 * ONE_MINUTE; 
-    private static final long DEFAULT_GPS_SCANNING_INTERVAL = 60 * ONE_SECOND; 
-    private static final long CLEANUP_INTERVAL = ONE_HOUR; 
+    /** Default timers inint liseconds*/
+    private static final int  DEFAULT_WIFI_SCANNING_INTERVAL = 2 * ONE_MINUTE; 
+    private static final int  DEFAULT_GPS_SCANNING_INTERVAL = 60 * ONE_SECOND; 
+    private static final int  CLEANUP_INTERVAL = ONE_HOUR; 
 
-    private static final long LOC_UPDATE_TIMEOUT = 5 * ONE_SECOND;
-    private static final long CACHE_TIMEOUT = 3 * ONE_DAY; 
-    private static final long EXTENTION_TIME = ONE_HOUR;;
+    private static final int  LOC_UPDATE_TIMEOUT = 5 * ONE_SECOND;
+    private static final int  CACHE_TIMEOUT = 3 * ONE_DAY; 
+    private static final int  EXTENTION_TIME = ONE_HOUR;;
 
 
     /** Threshold values */
