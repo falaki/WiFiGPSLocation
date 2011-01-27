@@ -13,6 +13,8 @@ import java.util.Collections;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ConcurrentModificationException;
+import org.json.JSONObject;
+import org.json.JSONException;
 
 
 import android.content.BroadcastReceiver;
@@ -110,6 +112,17 @@ public class WiFiGPSLocationService
     private static final double GPS_ACCURACY_THRESHOLD = 10.0;
     private static final int SIGNIFICANCE_THRESHOLD = 3;
 
+    /** Provider strings */
+    private static final String WIFIGPS_PROVIDER =
+        "WiFiGPSLocation:GPS";
+    private static final String FAKE_PROVIDER =
+        "WiFiGPSLocation:Fake";
+    private static final String APPROX_PROVIDER =
+        "WiFiGPSLocation:Approx";
+
+
+
+
     /** State variable indicating if the services is running or not */
     private boolean mRun;
 
@@ -158,8 +171,11 @@ public class WiFiGPSLocationService
     /** Temporary location object that is not accurate enough */
     private Location mTempKnownLoc;
 
-    /** Last seen WiFi set*/
+    /** Digetst String of the last seen WiFi set*/
     private String mLastWifiSet;
+
+    /** Set of the last scan result  */
+    List<ScanResult> mScanResults;
 
     /** Fake location object */
     private Location mFakeLocation;
@@ -173,7 +189,13 @@ public class WiFiGPSLocationService
     private final IWiFiGPSLocationServiceControl.Stub mControlBinder 
         = new IWiFiGPSLocationServiceControl.Stub()
     {
-    	
+
+        public static final String FAKE_PROVIDER =  
+            WiFiGPSLocationService.FAKE_PROVIDER; 
+
+        public static final String WIFIGPS_PROVIDER =
+            WiFiGPSLocationService.WIFIGPS_PROVIDER;
+
 
     	/**
     	 * Sets the current operational regime.  REGIME_RELAXED
@@ -287,8 +309,41 @@ public class WiFiGPSLocationService
             if (!mRun)
                 start();
 
-            return mLastKnownLoc;
+            if (mLastKnownLoc != null)
+                return mLastKnownLoc;
+            else
+                return mFakeLocation;
         }
+
+
+        /**
+         * Returns a String dump of last visible WiFi access points. 
+         * The returned String can be interpreted as a JSON object. Each
+         * key is the BSSID of a WiFi AP and the corresponding value is 
+         * the signal strength in dBm.
+         *
+         * @return              JSON object containing visible WiFi APs
+         */
+        public String getWiFiScan()
+        {
+            JSONObject scanJson = new JSONObject();
+
+            try
+            {
+                for (ScanResult result: mScanResults)
+                {
+                    scanJson.put(result.BSSID, result.level);
+                }
+            }
+            catch (JSONException je)
+            {
+                Log.e(TAG, "Could not write to JSONObject", je);
+            }
+
+            return scanJson.toString();
+
+        }
+
 
         /**
          * Change the GPS sampling interval. 
@@ -445,13 +500,14 @@ public class WiFiGPSLocationService
 
             if (action.equals(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION))
             {
-                List<ScanResult> results = mWifi.getScanResults();
+                mScanResults = mWifi.getScanResults();
 
-                Log.v(TAG, "WiFi scan found " + results.size() + " APs");
+                Log.v(TAG, "WiFi scan found " + mScanResults.size() 
+                        + " APs");
 
                 List<String> sResult = new ArrayList<String>();
 
-            for (ScanResult result : results)
+            for (ScanResult result : mScanResults)
             {
                 //It seems APs with higher signal strengths are
                 //more stable.  So I am ignoring weak APs.
@@ -462,7 +518,7 @@ public class WiFiGPSLocationService
             }
 
             Log.v(TAG, "Filtered " 
-                + (results.size() - sResult.size()) 
+                + (mScanResults.size() - sResult.size()) 
                 + " APs.");
 
             Collections.sort(sResult);
@@ -506,6 +562,7 @@ public class WiFiGPSLocationService
                     mScanCache.get(mLastWifiSet).known = true;
                     mScanCache.get(mLastWifiSet).loc = location;
                     mLastKnownLoc = location;
+                    mLastKnownLoc.setProvider(WIFIGPS_PROVIDER);
                 }
                 else
                 {
@@ -514,6 +571,7 @@ public class WiFiGPSLocationService
                         + cacheEntry(mLastWifiSet) );
                     mScanCache.get(mLastWifiSet).loc = location;
                     mLastKnownLoc = location;				
+                    mLastKnownLoc.setProvider(WIFIGPS_PROVIDER);
                 }
             }
         }
@@ -521,10 +579,11 @@ public class WiFiGPSLocationService
         {
             //Log.v(TAG, "Not accurate enough.");
             mTempKnownLoc = location;
+            mTempKnownLoc.setProvider(WIFIGPS_PROVIDER);
             mHandler.removeMessages(LOC_UPDATE_MSG);
             mHandler.sendMessageAtTime(
-            mHandler.obtainMessage(LOC_UPDATE_MSG),
-            SystemClock.uptimeMillis() + LOC_UPDATE_TIMEOUT);
+                mHandler.obtainMessage(LOC_UPDATE_MSG),
+                SystemClock.uptimeMillis() + LOC_UPDATE_TIMEOUT);
 
         }
     }
@@ -677,16 +736,24 @@ public class WiFiGPSLocationService
                         Log.v(TAG, "Using known location.");
                         mLastKnownLoc = record.loc;
                     }
+                    // Instead of passing a fake location object
+                    // we will return the last observed location 
+                    // as an approximation
                     else
                     {
                         // If the matching record does not 
                         // have a location object
-                        Log.i(TAG, "Using fake location.");
-                        mLastKnownLoc = mFakeLocation;
+                        Log.i(TAG, "Using approx location.");
+                        mLastKnownLoc.setProvider(APPROX_PROVIDER);
                     }
 
 
-                    mLastKnownLoc.setTime(curTime);
+                    // We do not update the 'fix' time 
+                    // of the location to allow the client
+                    // application have a measure of how stale
+                    // the location object is.
+                    /* mLastKnownLoc.setTime(curTime); */
+
                     mLastKnownLoc.setSpeed(0);
 
                     if (mGPSRunning)
@@ -903,6 +970,8 @@ public class WiFiGPSLocationService
                 mAccelServiceConnection, Context.BIND_AUTO_CREATE);
 
 
+        Log.setAppName("WiFiGPSLocation");
+
 
         mCallbacks = new RemoteCallbackList<ILocationChangedCallback>();
 
@@ -930,7 +999,7 @@ public class WiFiGPSLocationService
 
 
         
-        mFakeLocation = new Location("fake");
+        mFakeLocation = new Location(FAKE_PROVIDER);
         mFakeLocation.setLatitude(Double.NaN);
         mFakeLocation.setLongitude(Double.NaN);
         mFakeLocation.setSpeed(0);
@@ -993,7 +1062,7 @@ public class WiFiGPSLocationService
     {
         String sign;
         int count, hasloc;
-        double lat, lon, acc;
+        double lat, lon, acc, loctime;
         long time;
         GPSInfo gpsInfo;
         Location curLoc;
@@ -1007,6 +1076,7 @@ public class WiFiGPSLocationService
         int latIndex = c.getColumnIndex(DbAdaptor.KEY_LAT);
         int lonIndex = c.getColumnIndex(DbAdaptor.KEY_LON);
         int accIndex = c.getColumnIndex(DbAdaptor.KEY_ACC);
+        int locTimeIndex = c.getColumnIndex(DbAdaptor.KEY_LOCTIME);
         int providerIndex = c.getColumnIndex(DbAdaptor.KEY_PROVIDER);
         int haslocIndex = c.getColumnIndex(DbAdaptor.KEY_HASLOC);
 
@@ -1018,37 +1088,49 @@ public class WiFiGPSLocationService
 
         for (int i = 0; i < dbSize; i++)
         {
-            time = c.getInt(timeIndex);
-            count = c.getInt(countIndex);
-            sign = c.getString(signIndex);
-            hasloc = c.getInt(haslocIndex);
 
-
-
-            gpsInfo = new GPSInfo(true, time);
-
-
-            if (hasloc == DbAdaptor.YES)
+            try
             {
-                lat = c.getDouble(latIndex);
-                lon = c.getDouble(lonIndex);
-                acc = c.getDouble(accIndex);
-                provider = c.getString(providerIndex);
+                time = c.getInt(timeIndex);
+                count = c.getInt(countIndex);
+                sign = c.getString(signIndex);
+                hasloc = c.getInt(haslocIndex);
 
-                curLoc = new Location(provider);
-                curLoc.setLatitude(lat);
-                curLoc.setLongitude(lon);
-                curLoc.setAccuracy((float)acc);
-                gpsInfo.loc = curLoc;
+
+
+
+                gpsInfo = new GPSInfo(true, time);
+
+
+                if (hasloc == DbAdaptor.YES)
+                {
+                    lat = c.getDouble(latIndex);
+                    lon = c.getDouble(lonIndex);
+                    acc = c.getDouble(accIndex);
+                    loctime = c.getDouble(locTimeIndex);
+                    provider = c.getString(providerIndex);
+
+                    curLoc = new Location(provider);
+                    curLoc.setLatitude(lat);
+                    curLoc.setLongitude(lon);
+                    curLoc.setTime((long)loctime);
+                    curLoc.setAccuracy((float)acc);
+                    gpsInfo.loc = curLoc;
+                }
+                else
+                {
+                    Log.i(TAG, "Entry with no location.");
+                }
+
+                gpsInfo.count = count;
+                mScanCache.put(sign, gpsInfo);
+                Log.i(TAG, "Synced " + gpsInfo.toString());
+
             }
-            else
+            catch (Exception dbe)
             {
-                Log.i(TAG, "Entry with no location.");
+                Log.e(TAG, "Error reading a db entry", dbe);
             }
-
-            gpsInfo.count = count;
-            mScanCache.put(sign, gpsInfo);
-            Log.i(TAG, "Synced " + gpsInfo.toString());
             c.moveToNext();
         }
         c.close();
