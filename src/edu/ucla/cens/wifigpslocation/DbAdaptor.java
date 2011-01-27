@@ -38,6 +38,7 @@ public class DbAdaptor
     public static final String KEY_LAT = "loclat";
     public static final String KEY_LON = "loclon";
     public static final String KEY_ACC = "locacc";
+    public static final String KEY_LOCTIME = "loctime";
     public static final String KEY_PROVIDER = "locprovider";
     public static final String KEY_HASLOC = "haslocation";
 
@@ -55,12 +56,13 @@ public class DbAdaptor
     /** Database creation sql statement */
     private static final String DATABASE_CREATE =
             "create table wifigps (_id integer primary key "
-           + "autoincrement, recordtime integer not null, " 
+           + "autoincrement, recordtime real not null, " 
            + "recordcount integer not null,"
            + "recordsign text not null,"
            + "loclat real,"
            + "loclon real,"
            + "locacc real,"
+           + "loctime real,"
            + "locprovider text,"
            + "haslocation integer not null"
            + ");";
@@ -148,7 +150,7 @@ public class DbAdaptor
         Log.i(TAG, "Deleted database content: " + dbCount + " rows.");
 
         GPSInfo gpsInfo;
-        double lat, lon, acc;
+        double lat, lon, acc, loctime;
         int count;
         long time;
         String provider;
@@ -170,11 +172,13 @@ public class DbAdaptor
                 lat = gpsInfo.loc.getLatitude();
                 lon = gpsInfo.loc.getLongitude();
                 acc = gpsInfo.loc.getAccuracy();
+                loctime = gpsInfo.loc.getTime();
                 provider = gpsInfo.loc.getProvider();
 
                 initialValues.put(KEY_LAT, lat);
                 initialValues.put(KEY_LON, lon);
                 initialValues.put(KEY_ACC, acc);
+                initialValues.put(KEY_LOCTIME, loctime);
                 initialValues.put(KEY_PROVIDER, provider);
                 initialValues.put(KEY_HASLOC, YES);
 
