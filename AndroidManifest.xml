@@ -1,36 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-      package="edu.ucla.cens.wifigpslocation"
-      android:versionCode="1"
-      android:versionName="1.0">
-      <uses-permission
-    	android:name="android.permission.ACCESS_WIFI_STATE" />
-      <uses-permission 
-    	android:name="android.permission.ACCESS_FINE_LOCATION"/>
-      <uses-permission 
-      	android:name="android.permission.CHANGE_WIFI_STATE" />
-      <uses-permission 
-      	android:name="android.permission.WAKE_LOCK" />
+    package="edu.ucla.cens.wifigpslocation"
+    android:versionCode="7"
+    android:versionName="3.0">
+    <uses-permission
+    android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission 
+    android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission 
+    android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission 
+    android:name="android.permission.WAKE_LOCK" />
+
     <application android:icon="@drawable/icon" 
     	android:label="@string/app_name">
+
+        <!--
 	     <receiver
 	    	android:name=".ServiceStarter">
-	    <intent-filter>
-	        <action
-	            android:name="android.intent.action.BOOT_COMPLETED" />
-	        <category
-	            android:name="android.intent.category.HOME" />
-	    </intent-filter>
+            <intent-filter>
+                <action
+                    android:name="android.intent.action.BOOT_COMPLETED" />
+                <category
+                    android:name="android.intent.category.HOME" />
+            </intent-filter>
 		</receiver>
-      <service
-		android:label=".WiFiGPSLocationService"
-		android:name=".WiFiGPSLocationService"
-		android:process=":remote"
-		android:exported="true">
-		<intent-filter>
-			<action android:name = "edu.ucla.cens.wifigpslocation.IWiFiGPSLocationService" />
-		</intent-filter>
-	  </service>
+        -->
+    <service
+        android:label=".WiFiGPSLocationService"
+        android:name=".WiFiGPSLocationService"
+        android:process=":remote"
+        android:exported="true">
+        <intent-filter>
+            <action android:name="edu.ucla.cens.wifigpslocation.IWiFiGPSLocationService" />
+        </intent-filter>
+    </service>
 
     </application>
     
