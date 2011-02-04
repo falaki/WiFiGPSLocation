@@ -57,4 +57,14 @@ interface IWiFiGPSLocationService {
      * 
      */
     void start ();
+
+    /**
+     * Returns a String dump of last visible WiFi access points. 
+     * The returned String can be interpreted as a JSON object. Each
+     * key is the BSSID of a WiFi AP and the corresponding value is 
+     * the signal strength in dBm.
+     *
+     * @return              JSON object containing visible WiFi APs
+     */
+    String getWiFiScan();
 }
