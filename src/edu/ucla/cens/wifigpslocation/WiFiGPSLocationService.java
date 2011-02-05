@@ -187,12 +187,12 @@ public class WiFiGPSLocationService
     private PowerManager.WakeLock mCpuLock;
 
     /** Alarm Manager object */
-    AlarmManager mAlarmManager;
+    private AlarmManager mAlarmManager;
 
 
     /** Pending Intent objects */
-    PendingIntent mScanSender;
-    PendingIntent mCleanupSender;
+    private PendingIntent mScanSender;
+    private PendingIntent mCleanupSender;
 
 
     /** Location manager object to receive location objects */
@@ -518,22 +518,22 @@ public class WiFiGPSLocationService
 
                 List<String> sResult = new ArrayList<String>();
 
-            for (ScanResult result : mScanResults)
-            {
-                //It seems APs with higher signal strengths are
-                //more stable.  So I am ignoring weak APs.
-                if (result.level > SIGNAL_THRESHOLD)
-                    sResult.add(result.BSSID);
+                for (ScanResult result : mScanResults)
+                {
+                    //It seems APs with higher signal strengths are
+                    //more stable.  So I am ignoring weak APs.
+                    if (result.level > SIGNAL_THRESHOLD)
+                        sResult.add(result.BSSID);
 
-                Log.v(TAG, result.BSSID + " (" + result.level + "dBm)");
-            }
+                    Log.v(TAG, result.BSSID + " (" + result.level + "dBm)");
+                }
 
-            Log.v(TAG, "Filtered " 
-                + (mScanResults.size() - sResult.size()) 
-                + " APs.");
+                Log.v(TAG, "Filtered " 
+                    + (mScanResults.size() - sResult.size()) 
+                    + " APs.");
 
-            Collections.sort(sResult);
-            updateLocation(sResult);
+                Collections.sort(sResult);
+                updateLocation(sResult);
             }
             else if (action.equals( 
                         WifiManager.WIFI_STATE_CHANGED_ACTION)) 
@@ -547,6 +547,9 @@ public class WiFiGPSLocationService
                         setupWiFi();
                 }
             }
+
+
+            mCpuLock.release();
 
         }
     };
@@ -860,6 +863,7 @@ public class WiFiGPSLocationService
 
 
         mDbAdaptor.syncDb(mScanCache);
+        mCpuLock.release();
 
     }
 
@@ -947,30 +951,36 @@ public class WiFiGPSLocationService
     {
         if (!mPowerMonitorConnected)
         {
-            Log.i(TAG, "Binding to services");
+            Log.i(TAG, "Rebinding to PowerMonitor");
             bindService(new Intent(IPowerMonitor.class.getName()),
                     mPowerMonitorConnection, Context.BIND_AUTO_CREATE);
         }
-        else
-        {
-            Log.i(TAG, "Already connected to services.");
-        }
 
         if (!mAccelConnected)
+        {
+            Log.i(TAG, "Rebinding to AccelService");
             bindService(new Intent(IAccelService.class.getName()),
                     mAccelServiceConnection, Context.BIND_AUTO_CREATE);
+        }
 
         if (intent != null)
         {
             String action = intent.getAction();
-            Log.i(TAG, "Received action: " + action);
 
             if (action != null)
             {
+
+                Log.i(TAG, "Received action: " + action);
                 if (action.equals(WIFISCAN_ALARM_ACTION))
+                {
+                    mCpuLock.acquire(); // Released by WiFi receiver
                     mScanManager.scan();
+                }
                 else if (action.equals(CLEANUP_ALARM_ACTION))
+                {
+                    mCpuLock.acquire(); // Released by cleanCache()
                     cleanCache();
+                }
             }
 
         }
@@ -1050,13 +1060,11 @@ public class WiFiGPSLocationService
         }
 
 
-        /* Not used for now
         PowerManager pm = (PowerManager) this.getSystemService(
                 Context.POWER_SERVICE);
-        mCpuLock = pm.netWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
+        mCpuLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
                 APP_NAME);
 
-        */
 
         mWifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
         mLocManager = (LocationManager) getSystemService(LOCATION_SERVICE);
