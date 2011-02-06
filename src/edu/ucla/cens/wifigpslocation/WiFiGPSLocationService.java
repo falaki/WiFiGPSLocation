@@ -406,7 +406,10 @@ public class WiFiGPSLocationService
                 mCallbackCount--;
             }
 
-            if ((mCallbackCount <= 0) && mAccelConnected)
+            if (mCallbackCount < 0 )
+                mCallbackCount = 0;
+
+            if ((mCallbackCount == 0) && mAccelConnected)
             {
                 try
                 {
@@ -445,7 +448,8 @@ public class WiFiGPSLocationService
                 mAlarmManager.cancel(mScanSender);
                 mAlarmManager.cancel(mCleanupSender);
  
-                mWifiLock.release();
+                if (mWifiLock.isHeld())
+                    mWifiLock.release();
                 mRun = false; 
                 mClientCount = 0;
             }
@@ -549,7 +553,8 @@ public class WiFiGPSLocationService
             }
 
 
-            mCpuLock.release();
+            if (mCpuLock.isHeld())
+                mCpuLock.release();
 
         }
     };
@@ -863,7 +868,9 @@ public class WiFiGPSLocationService
 
 
         mDbAdaptor.syncDb(mScanCache);
-        mCpuLock.release();
+
+        if (mCpuLock.isHeld())
+            mCpuLock.release();
 
     }
 
@@ -973,12 +980,14 @@ public class WiFiGPSLocationService
                 Log.i(TAG, "Received action: " + action);
                 if (action.equals(WIFISCAN_ALARM_ACTION))
                 {
-                    mCpuLock.acquire(); // Released by WiFi receiver
+                    if (!mCpuLock.isHeld())
+                        mCpuLock.acquire(); // Released by WiFi receiver
                     mScanManager.scan();
                 }
                 else if (action.equals(CLEANUP_ALARM_ACTION))
                 {
-                    mCpuLock.acquire(); // Released by cleanCache()
+                    if (!mCpuLock.isHeld())
+                        mCpuLock.acquire(); // Released by cleanCache()
                     cleanCache();
                 }
             }
@@ -1064,6 +1073,7 @@ public class WiFiGPSLocationService
                 Context.POWER_SERVICE);
         mCpuLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
                 APP_NAME);
+        mCpuLock.setReferenceCounted(false);
 
 
         mWifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
@@ -1218,6 +1228,8 @@ public class WiFiGPSLocationService
         {
             mWifiLock = mWifi.createWifiLock(
                     WifiManager.WIFI_MODE_SCAN_ONLY, TAG);
+            mWifiLock.setReferenceCounted(false);
+
             if (!mWifiLock.isHeld())
                 mWifiLock.acquire();
         }
@@ -1225,7 +1237,8 @@ public class WiFiGPSLocationService
         {
             mWifiLock = mWifi.createWifiLock(
                     WifiManager.WIFI_MODE_SCAN_ONLY, TAG);
-            mWifiLock.acquire();
+            if (!mWifiLock.isHeld())
+                mWifiLock.acquire();
         }
     }
     
