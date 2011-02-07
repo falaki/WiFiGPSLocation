@@ -405,6 +405,12 @@ public class WiFiGPSLocationService
             {
                 if (mCallbacks.unregister(callback))
                     mCallbackCount--;
+                else
+                    return;
+            }
+            else
+            {
+                return;
             }
 
 
@@ -737,13 +743,20 @@ public class WiFiGPSLocationService
                     }
                     // Instead of passing a fake location object
                     // we will return the last observed location 
-                    // as an approximation
+                    // as an approximation if there is one
                     else
-                    {
-                        // If the matching record does not 
-                        // have a location object
-                        Log.i(TAG, "Using approx location.");
-                        mLastKnownLoc.setProvider(APPROX_PROVIDER);
+                    { 
+                        if (!mLastKnownLoc.getProvider().equals(
+                                    FAKE_PROVIDER))
+                        {
+                            Log.i(TAG, "Using approx location.");
+                            mLastKnownLoc.setProvider(APPROX_PROVIDER);
+                        }
+                        else
+                        {
+                            Log.i(TAG, "Using fake location.");
+                        }
+
                     }
 
 
