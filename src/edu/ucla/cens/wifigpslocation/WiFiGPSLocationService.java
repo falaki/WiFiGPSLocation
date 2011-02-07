@@ -370,8 +370,9 @@ public class WiFiGPSLocationService
         {
             if (callback != null)
             {
-                mCallbacks.register(callback, new Double(threshold));
-                mCallbackCount++;
+                if (mCallbacks.register(callback, 
+                            new Double(threshold)))
+                    mCallbackCount++;
             }
 
 
@@ -402,9 +403,11 @@ public class WiFiGPSLocationService
         {
             if (callback != null)
             {
-                mCallbacks.unregister(callback);
-                mCallbackCount--;
+                if (mCallbacks.unregister(callback))
+                    mCallbackCount--;
             }
+
+
 
             if (mCallbackCount < 0 )
                 mCallbackCount = 0;
