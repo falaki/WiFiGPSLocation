@@ -755,6 +755,7 @@ public class WiFiGPSLocationService
                         else
                         {
                             Log.i(TAG, "Using fake location.");
+                            mLastKnownLoc = mFakeLocation;
                         }
 
                     }
