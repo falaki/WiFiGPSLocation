@@ -23,16 +23,15 @@ interface IWiFiGPSLocationService {
     int suggestInterval (int interval);
 
     /**
-     * Registers the locationChanged call back along with the
+     * Registers the locationChanged callback along with the
      * acceleration threshold to be used. When the service notices a
-     * change in location based on WiFi signature, it checks recent
-     * acceleration (through the Accelerometer Service) and it is
-     * higher than the given threshold calls the callback method.
+     * change in location based on WiFi signature, it calls 
+     * the callback method.
      *
      * @param   callback        the Callback object
      * @param   threshold       acceleration threshold value
      */
-     void registerCallback(ILocationChangedCallback callback, double threshold);
+     void registerCallback(ILocationChangedCallback callback);
 
      /**
       * Unregisteres the callback
