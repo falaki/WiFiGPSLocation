@@ -165,8 +165,10 @@ public class WiFiGPSLocationService
     private int mCallbackCount = 0;
 
     /** AccelService object */
+    /*
     private IAccelService mAccelService;
     private boolean mAccelConnected;
+    */
 
 
     /** PowerMonitor object */
@@ -366,33 +368,13 @@ public class WiFiGPSLocationService
          *
          *
          */
-        public void registerCallback(ILocationChangedCallback callback, double threshold)
+        public void registerCallback(ILocationChangedCallback callback)
         {
             if (callback != null)
             {
-                if (mCallbacks.register(callback, 
-                            new Double(threshold)))
+                if (mCallbacks.register(callback))
                     mCallbackCount++;
             }
-
-
-            if ((mCallbackCount == 1) && mAccelConnected)
-            {
-                try
-                {
-                    mAccelService.start();
-                }
-                catch (RemoteException re)
-                {
-                    Log.e(TAG, "Exception when starting AccelService", re);
-                }
-            }
-            else
-            {
-                Log.i(TAG, "Not connected to AccelService");
-            }
-
-
         }
 
         /**
@@ -417,23 +399,6 @@ public class WiFiGPSLocationService
 
             if (mCallbackCount < 0 )
                 mCallbackCount = 0;
-
-            if ((mCallbackCount == 0) && mAccelConnected)
-            {
-                try
-                {
-                    mAccelService.stop();
-                }
-                catch (RemoteException re)
-                {
-                    Log.e(TAG, "Exception when stoping AccelService", re);
-                }
-            }
-            else
-            {
-                Log.w(TAG, "Not connected to AccelService");
-            }
-
 
 
         }
@@ -656,23 +621,19 @@ public class WiFiGPSLocationService
         if ((!mLastWifiSet.equals(key)) || (wifiSet.size() == 0) )
         {
             final int N = mCallbacks.beginBroadcast();
-            if ((N > 0) && mAccelConnected)
+            if (N > 0)
             {
-                Log.v(TAG, "Checking for acceleration threshold.");
+                Log.v(TAG, "Calling registered clients.");
 
-                double threshold;
                 ILocationChangedCallback callBack;
 
                 for (int i = 0; i < N; i++)
                 {
-                    threshold = (Double) mCallbacks.getBroadcastCookie(i);
                     callBack = mCallbacks.getBroadcastItem(i);
 
                     try
                     {
-                        if (mAccelService.significantForce(threshold))
-                            callBack.locationChanged();
-                        Log.i(TAG, "Exceeded " + threshold); 
+                        callBack.locationChanged();
                     }
                     catch (RemoteException re)
                     {
@@ -892,6 +853,7 @@ public class WiFiGPSLocationService
     }
 
 
+    /*
     private ServiceConnection mAccelServiceConnection 
             = new ServiceConnection() 
     {
@@ -910,6 +872,7 @@ public class WiFiGPSLocationService
         }
 
     };
+    */
     
 
     private ServiceConnection mPowerMonitorConnection 
@@ -980,12 +943,6 @@ public class WiFiGPSLocationService
                     mPowerMonitorConnection, Context.BIND_AUTO_CREATE);
         }
 
-        if (!mAccelConnected)
-        {
-            Log.i(TAG, "Rebinding to AccelService");
-            bindService(new Intent(IAccelService.class.getName()),
-                    mAccelServiceConnection, Context.BIND_AUTO_CREATE);
-        }
 
         if (intent != null)
         {
@@ -1023,9 +980,6 @@ public class WiFiGPSLocationService
 
         bindService(new Intent(ISystemLog.class.getName()),
                 Log.SystemLogConnection, Context.BIND_AUTO_CREATE);
-
-        bindService(new Intent(IAccelService.class.getName()),
-                mAccelServiceConnection, Context.BIND_AUTO_CREATE);
 
         bindService(new Intent(IPowerMonitor.class.getName()),
                 mPowerMonitorConnection, Context.BIND_AUTO_CREATE);
@@ -1152,7 +1106,6 @@ public class WiFiGPSLocationService
 		// Cancel WiFi scan registration
 		unregisterReceiver(mWifiScanReceiver);
         unbindService(Log.SystemLogConnection);
-        unbindService(mAccelServiceConnection);
     }
 
     private void readDb()
