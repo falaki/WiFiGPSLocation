@@ -6,6 +6,7 @@
 package edu.ucla.cens.wifigpslocation;
 
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -144,6 +145,8 @@ public class WiFiGPSLocationService
         "WiFiGPSLocation:Approx";
 
 
+    /** Table of connected clients */
+    private Hashtable<String, Integer> mClientsTable;
 
 
     /** State variable indicating if the services is running or not */
@@ -154,9 +157,6 @@ public class WiFiGPSLocationService
 
     /** State variable indicating if the GPS location is being used */
     private boolean mGPSRunning;
-
-    /** Counter for the number of connected clients */
-    private int mClientCount = 0;
 
     /** List of callback objects */
     private RemoteCallbackList<ILocationChangedCallback> mCallbacks;
@@ -300,7 +300,7 @@ public class WiFiGPSLocationService
         public Location getLocation ()
         {
             if (!mRun)
-                start();
+                return null;
 
             if (mLastKnownLoc != null)
                 return mLastKnownLoc;
@@ -355,11 +355,17 @@ public class WiFiGPSLocationService
          * 
          * @param		interval	GPS sampling interval in milliseconds
          */
-        public int suggestInterval (int interval)
+        public int suggestInterval(String callerName, int interval)
         {
-            mGpsScanInterval = interval;
+            if (callerName == null)
+                return -1;
 
-            return mGpsScanInterval;
+            if (interval < 0)
+                return -1;
+            
+            mClientsTable.put(callerName, interval);
+
+            return adjustGPSInterval();
         }
 
 
@@ -368,38 +374,34 @@ public class WiFiGPSLocationService
          *
          *
          */
-        public void registerCallback(ILocationChangedCallback callback)
+        public void registerCallback(String callerName, 
+                ILocationChangedCallback callback)
         {
-            if (callback != null)
-            {
-                if (mCallbacks.register(callback))
-                    mCallbackCount++;
-            }
+            if ((callerName == null) || (callback == null))
+                return;
+
+
+            if (!mClientsTable.containsKey(callerName))
+                mClientsTable.put(callerName, 
+                        DEFAULT_GPS_SCANNING_INTERVAL);
+
+            mCallbacks.register(callback);
         }
 
         /**
          * Unregisters the callback
          *
          */
-        public void unregisterCallback(ILocationChangedCallback callback)
+        public void unregisterCallback(String callerName,
+                ILocationChangedCallback callback)
         {
-            if (callback != null)
-            {
-                if (mCallbacks.unregister(callback))
-                    mCallbackCount--;
-                else
-                    return;
-            }
-            else
-            {
+            if (callerName == null)
                 return;
-            }
 
 
-
-            if (mCallbackCount < 0 )
-                mCallbackCount = 0;
-
+            if (mClientsTable.containsKey(callerName))
+                if (callback != null)
+                    mCallbacks.unregister(callback);
 
         }
 
@@ -410,12 +412,21 @@ public class WiFiGPSLocationService
          * but it does not perform any energy consuming tasks.
          * 
          */
-        public void stop ()
+        public void stop(String callerName)
         {
-            mClientCount--;
-            Log.i(TAG, "Received a stop() call");
+            if (callerName == null)
+                return;
 
-            if (mClientCount <= 0)
+            if (mClientsTable.containsKey(callerName))
+                mClientsTable.remove(callerName);
+            else
+                return;
+
+            Log.i(TAG, "Received a stop() call from " + callerName);
+
+            int clientCount = mClientsTable.size();
+
+            if ((clientCount == 0) && (mRun))
             {
                 Log.i(TAG, "Stoping operations");
                 // Cancel pending alarms
@@ -425,11 +436,12 @@ public class WiFiGPSLocationService
                 if (mWifiLock.isHeld())
                     mWifiLock.release();
                 mRun = false; 
-                mClientCount = 0;
             }
             else
             {
                 Log.i(TAG, "Continuing operations");
+                adjustGPSInterval();
+
             }
 
         }
@@ -438,10 +450,17 @@ public class WiFiGPSLocationService
          * Starts the WiFiGPSLocationService.
          * Schedules a new scan message and sets the Run flag to true.
          */
-        public void start ()
+        public void start(String callerName)
         {			
-            Log.i(TAG, "Received a start() call");
-            mClientCount++;
+            if (callerName == null)
+                return;
+
+            Log.i(TAG, "Received a start() call from " + callerName);
+
+            if (!mClientsTable.containsKey(callerName))
+                mClientsTable.put(callerName, 
+                        DEFAULT_GPS_SCANNING_INTERVAL);
+
             if (!mRun)
             {
                 mRun = true;
@@ -468,6 +487,8 @@ public class WiFiGPSLocationService
 
 
     };
+
+
 
 	
     /**
@@ -707,7 +728,8 @@ public class WiFiGPSLocationService
                     // as an approximation if there is one
                     else
                     { 
-                        if (!mLastKnownLoc.getProvider().equals(
+                        if (mLastKnownLoc != null && 
+                                !mLastKnownLoc.getProvider().equals(
                                     FAKE_PROVIDER))
                         {
                             Log.i(TAG, "Using approx location.");
@@ -985,6 +1007,7 @@ public class WiFiGPSLocationService
                 mPowerMonitorConnection, Context.BIND_AUTO_CREATE);
 
 
+        mClientsTable = new Hashtable<String, Integer>();
 
 
         Log.setAppName(APP_NAME);
@@ -1219,6 +1242,29 @@ public class WiFiGPSLocationService
     {
         mWifiScanInterval = DEFAULT_WIFI_SCANNING_INTERVAL;
         mGpsScanInterval = DEFAULT_GPS_SCANNING_INTERVAL;
+    }
+
+
+
+    private int adjustGPSInterval()
+    {
+        int curInterval = Integer.MAX_VALUE;
+
+        for (Integer interval : mClientsTable.values())
+        {
+            if (interval < curInterval)
+                curInterval = interval;
+        }
+
+         if (curInterval != Integer.MAX_VALUE)
+             mGpsScanInterval = curInterval;
+         else
+            mGpsScanInterval = DEFAULT_GPS_SCANNING_INTERVAL;
+
+         Log.i(TAG, "Scanning interval adjusted to " +
+                 mGpsScanInterval);
+
+         return mGpsScanInterval;
     }
 
 

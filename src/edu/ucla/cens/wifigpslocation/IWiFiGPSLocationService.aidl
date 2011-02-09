@@ -18,9 +18,10 @@ interface IWiFiGPSLocationService {
      * a suggestion. It will return the actual value that was applied.
      * 
      * @param		interval	GPS sampling interval in milliseconds
+     * @param       callerName  String name identifying the client
      * @return					actual GPS sampling interval in milliseconds
      */
-    int suggestInterval (int interval);
+    int suggestInterval (String callerName, int interval);
 
     /**
      * Registers the locationChanged callback along with the
@@ -29,16 +30,19 @@ interface IWiFiGPSLocationService {
      * the callback method.
      *
      * @param   callback        the Callback object
-     * @param   threshold       acceleration threshold value
+     * @param   callerName      String name identifying the client
      */
-     void registerCallback(ILocationChangedCallback callback);
+     void registerCallback(String callerName, 
+            ILocationChangedCallback callback);
 
-     /**
-      * Unregisteres the callback
-      * 
-      * @param  callback        the callback to be unregistered
-      */
-     void unregisterCallback(ILocationChangedCallback callback);
+    /**
+     * Unregisteres the callback
+     * 
+     * @param  callback        the callback to be unregistered
+     * @param  callerName      String name identifying the client
+     */
+    void unregisterCallback(String callerName, 
+            ILocationChangedCallback callback);
 
 
     /**
@@ -47,15 +51,17 @@ interface IWiFiGPSLocationService {
      * certain that your application does not need location
      * information.
      * 
+     * @param  callerName      String name identifying the client
      */
-    void stop ();
+    void stop (String callerName);
 
     /**
      * Starts the WiFiGPSLocationService if it has not been started
      * before. 
      * 
+     * @param  callerName      String name identifying the client
      */
-    void start ();
+    void start (String callerName);
 
     /**
      * Returns a String dump of last visible WiFi access points. 
