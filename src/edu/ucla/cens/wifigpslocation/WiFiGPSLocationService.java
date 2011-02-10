@@ -516,20 +516,40 @@ public class WiFiGPSLocationService
                         + " APs");
 
                 List<String> sResult = new ArrayList<String>();
+                long levelSum = 0;
 
                 for (ScanResult result : mScanResults)
                 {
                     //It seems APs with higher signal strengths are
                     //more stable.  So I am ignoring weak APs.
                     if (result.level > SIGNAL_THRESHOLD)
+                    {
                         sResult.add(result.BSSID);
+                        levelSum += result.level;
+                    }
 
                     Log.v(TAG, result.BSSID + " (" + result.level + "dBm)");
                 }
 
-                Log.v(TAG, "Filtered " 
+                if ((sResult.size() > 0) && (mScanResults.size() > 0))
+                {
+                    long newThreshold = levelSum/mScanResults.size();
+                    Log.i(TAG, "Signals are too week."
+                            + " Using " + newThreshold
+                            + " as new threshold.");
+                    
+                    for (ScanResult result : mScanResults)
+                        if (result.level >= newThreshold)
+                            sResult.add(result.BSSID);
+
+
+                }
+
+                Log.i(TAG, "Filtered " 
                     + (mScanResults.size() - sResult.size()) 
                     + " APs.");
+
+
 
                 Collections.sort(sResult);
                 updateLocation(sResult);
