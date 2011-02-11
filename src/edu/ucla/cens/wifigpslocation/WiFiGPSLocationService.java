@@ -542,7 +542,6 @@ public class WiFiGPSLocationService
                         if (result.level >= newThreshold)
                             sResult.add(result.BSSID);
 
-
                 }
 
                 Log.i(TAG, "Filtered " 
@@ -1416,6 +1415,7 @@ public class WiFiGPSLocationService
             if ( Double.isNaN(mLimit) || (mCurTotal < mLimit) )
             {
                 mWifi.startScan();
+                Log.i(TAG, "Starting WiFi scan.");
                 mTotal += 1.0;
                 mCurTotal += 1.0;
                 return true;
