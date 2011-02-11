@@ -531,7 +531,7 @@ public class WiFiGPSLocationService
                     Log.v(TAG, result.BSSID + " (" + result.level + "dBm)");
                 }
 
-                if ((sResult.size() > 0) && (mScanResults.size() > 0))
+                if ((sResult.size() == 0) && (mScanResults.size() > 0))
                 {
                     long newThreshold = levelSum/mScanResults.size();
                     Log.i(TAG, "Signals are too week."
