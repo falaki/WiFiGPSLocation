@@ -516,7 +516,7 @@ public class WiFiGPSLocationService
                         + " APs");
 
                 List<String> sResult = new ArrayList<String>();
-                long levelSum = 0;
+                int levelSum = 0;
 
                 for (ScanResult result : mScanResults)
                 {
@@ -528,12 +528,13 @@ public class WiFiGPSLocationService
                         levelSum += result.level;
                     }
 
-                    Log.v(TAG, result.BSSID + " (" + result.level + "dBm)");
+                    Log.v(TAG, result.BSSID + " (" 
+                            + result.level + "dBm)");
                 }
 
                 if ((sResult.size() == 0) && (mScanResults.size() > 0))
                 {
-                    long newThreshold = levelSum/mScanResults.size();
+                    int newThreshold = levelSum/mScanResults.size();
                     Log.i(TAG, "Signals are too week."
                             + " Using " + newThreshold
                             + " as new threshold.");
