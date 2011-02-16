@@ -289,6 +289,15 @@ public class WiFiGPSLocationService
         public static final String APPROX_PROVIDER=
             WiFiGPSLocationService.APPROX_PROVIDER;
 
+        /**
+         *  Returns true if the service is already running.
+         *
+         * @return      state of the service
+         */
+        public boolean isRunning()
+        {
+            return mRun;
+        }
 
 
         /**
