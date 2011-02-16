@@ -5,6 +5,15 @@ import android.location.Location;
 import edu.ucla.cens.wifigpslocation.ILocationChangedCallback;
 
 interface IWiFiGPSLocationService {
+
+    /**
+     * Returns true if the service has already been started.
+     *
+     * @return      the state of the service
+     */
+    boolean isRunning();
+
+
     /**
      * Returns the current location. 
      *
