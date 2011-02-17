@@ -306,7 +306,7 @@ public class WiFiGPSLocationService
          *
          * @return		the last known location
          */
-        public Location getLocation ()
+        public Location getLocation()
         {
             if (!mRun)
                 return null;
@@ -334,24 +334,27 @@ public class WiFiGPSLocationService
                 new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
 
 
-            try
+            if (mScanResults != null)
             {
-                for (ScanResult result: mScanResults)
+                try
                 {
-                    scanJson = new JSONObject();
-                    scanJson.put("ssid", result.BSSID);
-                    scanJson.put("strength", result.level);
-                    scanList.put(scanJson);
+                    for (ScanResult result: mScanResults)
+                    {
+                        scanJson = new JSONObject();
+                        scanJson.put("ssid", result.BSSID);
+                        scanJson.put("strength", result.level);
+                        scanList.put(scanJson);
+                    }
+                    scanResult.put("scan", scanList);
+                    scanResult.put("timestamp", 
+                            sdf.format(mWifiScanTime.getTime()));
+
+
                 }
-                scanResult.put("scan", scanList);
-                scanResult.put("timestamp", 
-                        sdf.format(mWifiScanTime.getTime()));
-
-
-            }
-            catch (JSONException je)
-            {
-                Log.e(TAG, "Could not write to JSONObject", je);
+                catch (JSONException je)
+                {
+                    Log.e(TAG, "Could not write to JSONObject", je);
+                }
             }
 
             return scanResult.toString();
@@ -363,6 +366,7 @@ public class WiFiGPSLocationService
          * Change the GPS sampling interval. 
          * 
          * @param		interval	GPS sampling interval in milliseconds
+         * @param       callerName  String name identifying the client
          */
         public int suggestInterval(String callerName, int interval)
         {
@@ -380,8 +384,15 @@ public class WiFiGPSLocationService
 
         /**
          * Registers a callback to be called when location changes.
+         * Clients are expected to call start() to gaurantee that
+         * the service starts operation. However, we add the
+         * callerName to the clients table. 
+         * If a client needs to get callbacks only when the service
+         * runs because of other clients (like the TriggerService),
+         * then the client needs to call top right after unregister.
          *
-         *
+         * @param       callerName  String name identifying the client
+         * @param       callback    callback object
          */
         public void registerCallback(String callerName, 
                 ILocationChangedCallback callback)
@@ -398,8 +409,10 @@ public class WiFiGPSLocationService
         }
 
         /**
-         * Unregisters the callback
+         * Unregisters the callback.
          *
+         * @param       callerName  String name identifying the client
+         * @param       callback    callback object
          */
         public void unregisterCallback(String callerName,
                 ILocationChangedCallback callback)
@@ -420,6 +433,7 @@ public class WiFiGPSLocationService
          * The Android service is still running and can receive calls,
          * but it does not perform any energy consuming tasks.
          * 
+         * @param       callerName  String name identifying the client
          */
         public void stop(String callerName)
         {
@@ -458,6 +472,8 @@ public class WiFiGPSLocationService
         /**
          * Starts the WiFiGPSLocationService.
          * Schedules a new scan message and sets the Run flag to true.
+         *
+         * @param       callerName  String name identifying the client
          */
         public void start(String callerName)
         {			
@@ -1067,7 +1083,7 @@ public class WiFiGPSLocationService
 
 
         Log.i(TAG, "Reading last saved cache");
-        readDb();
+        while (!readDb());
 
 
         
@@ -1160,7 +1176,7 @@ public class WiFiGPSLocationService
         unbindService(Log.SystemLogConnection);
     }
 
-    private void readDb()
+    private boolean readDb()
     {
         String sign;
         int count, hasloc;
@@ -1232,10 +1248,13 @@ public class WiFiGPSLocationService
             catch (Exception dbe)
             {
                 Log.e(TAG, "Error reading a db entry", dbe);
+                c.close();
+                return false;
             }
             c.moveToNext();
         }
         c.close();
+        return true;
     }
     
 
