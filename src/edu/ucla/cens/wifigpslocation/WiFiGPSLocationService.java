@@ -541,7 +541,7 @@ public class WiFiGPSLocationService
                         + " APs");
 
                 List<String> sResult = new ArrayList<String>();
-                int levelSum = 0;
+                double levelSum = 0;
 
                 for (ScanResult result : mScanResults)
                 {
@@ -559,7 +559,7 @@ public class WiFiGPSLocationService
 
                 if ((sResult.size() == 0) && (mScanResults.size() > 0))
                 {
-                    int newThreshold = levelSum/mScanResults.size();
+                    double newThreshold = levelSum/mScanResults.size();
                     Log.i(TAG, "Signals are too week."
                             + " Using " + newThreshold
                             + " as new threshold.");
