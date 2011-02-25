@@ -912,7 +912,17 @@ public class WiFiGPSLocationService
     	}
 
 
-        mDbAdaptor.syncDb(mScanCache);
+        try
+        {
+            mDbAdaptor.open();
+            mDbAdaptor.syncDb(mScanCache);
+            mDbAdaptor.close();
+        }
+        catch(SQLException e)
+        {
+            Log.e(TAG, "Could not syncronize database.", e);
+        }
+
 
         if (mCpuLock.isHeld())
             mCpuLock.release();
@@ -1069,14 +1079,6 @@ public class WiFiGPSLocationService
         mGPSManager = new GPSManager();
         mScanManager = new ScanManager();
 
-        try
-        {
-            mDbAdaptor.open();
-        }
-        catch(SQLException e)
-        {
-            Log.e(TAG, "Exception", e);
-        }
 
 		//Initialize the scan cache 
 		mScanCache = new HashMap<String, GPSInfo>();
@@ -1156,7 +1158,17 @@ public class WiFiGPSLocationService
     @Override
     public void onDestroy()
     {
-        mDbAdaptor.syncDb(mScanCache);
+        try
+        {
+            mDbAdaptor.open();
+            mDbAdaptor.syncDb(mScanCache);
+            mDbAdaptor.close();
+        }
+        catch(SQLException e)
+        {
+            Log.e(TAG, "Could not syncronize database.", e);
+        }
+
 
     	// Remove pending WiFi scan messages
     	mHandler.removeMessages(LOC_UPDATE_MSG);
@@ -1185,6 +1197,18 @@ public class WiFiGPSLocationService
         GPSInfo gpsInfo;
         Location curLoc;
         String provider;
+
+
+        try
+        {
+            mDbAdaptor.open();
+        }
+        catch(SQLException e)
+        {
+            Log.e(TAG, "Could not open database connection", e);
+        }
+
+
 
         Cursor c = mDbAdaptor.fetchAllEntries();
 
@@ -1252,6 +1276,18 @@ public class WiFiGPSLocationService
             c.moveToNext();
         }
         c.close();
+
+        try
+        {
+            mDbAdaptor.close();
+        }
+        catch(SQLException e)
+        {
+            Log.e(TAG, "Could not close database connection", e);
+        }
+
+
+
         return true;
     }
     
