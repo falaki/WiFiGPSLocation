@@ -1083,7 +1083,7 @@ public class WiFiGPSLocationService
 
 
         Log.i(TAG, "Reading last saved cache");
-        while (!readDb());
+        readDb();
 
 
         
