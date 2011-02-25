@@ -1248,8 +1248,6 @@ public class WiFiGPSLocationService
             catch (Exception dbe)
             {
                 Log.e(TAG, "Error reading a db entry", dbe);
-                c.close();
-                return false;
             }
             c.moveToNext();
         }
