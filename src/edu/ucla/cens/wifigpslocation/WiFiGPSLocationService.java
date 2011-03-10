@@ -181,6 +181,10 @@ public class WiFiGPSLocationService
     private WifiManager mWifi;
 
 
+    /** Boolean flag to only look at my own WiFi scans */
+    private boolean mWaitingForScan = false;
+
+
     /** WiFi wake lock object */
     private WifiLock mWifiLock;
 
@@ -376,6 +380,9 @@ public class WiFiGPSLocationService
             if (interval < 0)
                 return -1;
             
+            Log.i(TAG, callerName + " suggested " + interval 
+                    + " as interval");
+
             mClientsTable.put(callerName, interval);
 
             return adjustGPSInterval();
@@ -533,6 +540,10 @@ public class WiFiGPSLocationService
 
             if (action.equals(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION))
             {
+                if (!mWaitingForScan)
+                    return;
+
+                mWaitingForScan = false;
                 mScanResults = mWifi.getScanResults();
                 mWifiScanTime = Calendar.getInstance();
                 
@@ -541,7 +552,7 @@ public class WiFiGPSLocationService
                         + " APs");
 
                 List<String> sResult = new ArrayList<String>();
-                double levelSum = 0;
+                double levelSum = 0.0;
 
                 for (ScanResult result : mScanResults)
                 {
@@ -550,17 +561,18 @@ public class WiFiGPSLocationService
                     if (result.level > SIGNAL_THRESHOLD)
                     {
                         sResult.add(result.BSSID);
-                        levelSum += result.level;
                     }
 
                     Log.v(TAG, result.BSSID + " (" 
                             + result.level + "dBm)");
+
+                    levelSum += result.level;
                 }
 
                 if ((sResult.size() == 0) && (mScanResults.size() > 0))
                 {
                     double newThreshold = levelSum/mScanResults.size();
-                    Log.i(TAG, "Signals are too week."
+                    Log.i(TAG, "Signals are too weak."
                             + " Using " + newThreshold
                             + " as new threshold.");
                     
@@ -1478,6 +1490,8 @@ public class WiFiGPSLocationService
             if ( Double.isNaN(mLimit) || (mCurTotal < mLimit) )
             {
                 mWifi.startScan();
+                mWaitingForScan = true;
+
                 Log.i(TAG, "Starting WiFi scan.");
                 mTotal += 1.0;
                 mCurTotal += 1.0;
