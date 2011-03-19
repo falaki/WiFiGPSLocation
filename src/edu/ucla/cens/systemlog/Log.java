@@ -18,10 +18,14 @@ public class Log
 
     private static String sAppName = DEFAULT_APP_NAME;
 
+    private static String sUserId;
+
     public static void setAppName(String name)
     {
         sAppName = name;
     }
+
+
 		
     public static ServiceConnection SystemLogConnection 
         = new ServiceConnection() 
@@ -61,6 +65,12 @@ public class Log
                     "Not connected to SystemLog. Could not register "
                     + tag);
 		}    	
+    }
+
+
+    public static boolean isConnected()
+    {
+        return sConnected;
     }
 
     public static boolean isRegistered(String tag)
@@ -154,6 +164,30 @@ public class Log
     		android.util.Log.e(tag, message, e);
     	}
     }
+
+
+    public static void e (String tag, String message)
+    {
+    	if (sConnected)
+    	{
+	    	try
+	    	{
+                if (!sLogger.isRegistered(tag))
+                    register(tag);
+
+	    		sLogger.error(tag, message);
+	    	}
+	    	catch (RemoteException re)
+	    	{
+	    		android.util.Log.e(TAG, "Remote Exception", re);
+	    	}
+    	}
+    	else
+    	{
+    		android.util.Log.e(tag, message);
+    	}
+    }
+
 
 
     public static void v (String tag, String message)

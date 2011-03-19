@@ -1033,6 +1033,14 @@ public class WiFiGPSLocationService
         }
 
 
+        if (!Log.isConnected())
+        {
+            bindService(new Intent(ISystemLog.class.getName()),
+                    Log.SystemLogConnection, Context.BIND_AUTO_CREATE);
+        }
+
+
+
         if (intent != null)
         {
             String action = intent.getAction();
