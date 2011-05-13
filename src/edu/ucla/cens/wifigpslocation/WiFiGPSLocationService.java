@@ -127,7 +127,7 @@ public class WiFiGPSLocationService
 
 
     private static final int  LOC_UPDATE_TIMEOUT = 5 * ONE_SECOND;
-    private static final int  CACHE_TIMEOUT = 3 * ONE_DAY; 
+    private static final int  CACHE_TIMEOUT = 10 * ONE_DAY; 
     private static final int  EXTENTION_TIME = ONE_HOUR;;
 
 
@@ -135,14 +135,24 @@ public class WiFiGPSLocationService
     private static final int SIGNAL_THRESHOLD = -80;
     private static final double GPS_ACCURACY_THRESHOLD = 10.0;
     private static final int SIGNIFICANCE_THRESHOLD = 3;
+    private static final int CRITICAL_THRESHOLD = 15;
+
+
+    /** Set this to false to stop using network location */
+    private boolean USE_NETWORK_LOCATION = true;
 
     /** Provider strings */
     private static final String WIFIGPS_PROVIDER =
         "WiFiGPSLocation:GPS";
+    private static final String CACHED_PROVIDER =
+        "WiFiGPSLocation:Cached";
     private static final String FAKE_PROVIDER =
         "WiFiGPSLocation:Fake";
     private static final String APPROX_PROVIDER =
         "WiFiGPSLocation:Approx";
+    private static final String NET_PROVIDER =
+        "WiFiGPSLocation:Network";
+
 
 
     /** Table of connected clients */
@@ -183,6 +193,9 @@ public class WiFiGPSLocationService
 
     /** Boolean flag to only look at my own WiFi scans */
     private boolean mWaitingForScan = false;
+
+    /** Boolean flag indicating waiting for network location update */
+    private boolean mWaitingForNetLocation = false;
 
 
     /** WiFi wake lock object */
@@ -292,6 +305,10 @@ public class WiFiGPSLocationService
 
         public static final String APPROX_PROVIDER=
             WiFiGPSLocationService.APPROX_PROVIDER;
+
+        public static final String NET_PROVIDER=
+            WiFiGPSLocationService.NET_PROVIDER;
+
 
         /**
          *  Returns true if the service is already running.
@@ -462,6 +479,8 @@ public class WiFiGPSLocationService
                 // Cancel pending alarms
                 mAlarmManager.cancel(mScanSender);
                 mAlarmManager.cancel(mCleanupSender);
+                cleanCache();
+
  
                 if (mWifiLock.isHeld())
                     mWifiLock.release();
@@ -612,11 +631,58 @@ public class WiFiGPSLocationService
     };
 
 
+    private LocationListener mNetLocListener = new LocationListener()
+    {
+        public void onLocationChanged(Location location)
+        {
+
+           if (mWaitingForNetLocation)
+            {
+                Log.i(TAG, "Got a network loc update while waiting" 
+                        + " for it.");
+                mLastKnownLoc = location;
+                mLastKnownLoc.setProvider(NET_PROVIDER);
+                mWaitingForNetLocation = false;
+            }
+            else
+            {
+                Log.i(TAG, "Did not expect a network loc update!");
+            }
+
+            mLocManager.removeUpdates(mNetLocListener);
+
+        }
+
+        public void onProviderDisabled(String provider)
+        {
+            Log.i(TAG, provider + " was disabled.");
+            USE_NETWORK_LOCATION = false;
+        }
+
+        public void onProviderEnabled(String provider)
+        {
+            Log.i(TAG, provider + " was enabled.");
+            USE_NETWORK_LOCATION = true;
+        }
+
+        public void onStatusChanged(String provider, int status,
+                Bundle extra)
+        {
+
+            Log.i(TAG, provider + "status changed to " + status);
+
+        }
+
+
+    };
+
 
     public synchronized void onLocationChanged(Location location) 
     {
         double accuracy =  location.getAccuracy();
         Log.i(TAG, "Received location update. Accuracy: " + accuracy);
+
+        String provider = location.getProvider();
 
         if ( accuracy < GPS_ACCURACY_THRESHOLD)
         {
@@ -632,6 +698,8 @@ public class WiFiGPSLocationService
                     cacheEntry(mLastWifiSet));
                     mScanCache.get(mLastWifiSet).known = true;
                     mScanCache.get(mLastWifiSet).loc = location;
+                    mScanCache.get(mLastWifiSet).loc.setProvider(
+                            CACHED_PROVIDER);
                     mLastKnownLoc = location;
                     mLastKnownLoc.setProvider(WIFIGPS_PROVIDER);
                 }
@@ -641,6 +709,9 @@ public class WiFiGPSLocationService
                         + "but still updating " 
                         + cacheEntry(mLastWifiSet) );
                     mScanCache.get(mLastWifiSet).loc = location;
+                    mScanCache.get(mLastWifiSet).loc.setProvider(
+                            CACHED_PROVIDER);
+
                     mLastKnownLoc = location;				
                     mLastKnownLoc.setProvider(WIFIGPS_PROVIDER);
                 }
@@ -662,19 +733,19 @@ public class WiFiGPSLocationService
     public void onStatusChanged(String provider, 
             int status, Bundle extras) 
     {
-        // TODO Auto-generated method stub
+        Log.i(TAG, provider + "status changed to " + status);
 
     }
         
     public void onProviderEnabled(String provider) 
     {
-        // TODO Auto-generated method stub
+        Log.i(TAG, provider + " was enabled.");
 
     }
 
     public void onProviderDisabled(String provider) 
     {
-        // TODO Auto-generated method stub
+        Log.i(TAG, provider + " was disabled.");
 
     }
     
@@ -689,13 +760,11 @@ public class WiFiGPSLocationService
         Log.v(TAG, "Updating cache for: " + wifiSet.toString());
 
 
-        //TODO: If there is no wifi still check for accelearion.
 
 
         // First check if the current WiFi signature is different
         // from the last visited Wifi set. If they are different,
-        // check acceleration. If acceleration is "high" call
-        // each registered client
+        // call each registered client
         if ((!mLastWifiSet.equals(key)) || (wifiSet.size() == 0) )
         {
             final int N = mCallbacks.beginBroadcast();
@@ -753,8 +822,9 @@ public class WiFiGPSLocationService
 
             if (mScanCache.containsKey(key))
             {
-                mScanCache.get(key).increment();
                 record = mScanCache.get(key);
+                record.increment();
+                record.resetTime(curTime);
                 Log.i(TAG, "Found a record: " 
                         + record.toString());
 
@@ -780,26 +850,47 @@ public class WiFiGPSLocationService
                         Log.v(TAG, "Using known location.");
                         mLastKnownLoc = record.loc;
                     }
-                    // Instead of passing a fake location object
-                    // we will return the last observed location 
+                    // We will use network location and if
+                    // that is not available or disabled 
+                    // last observed location 
                     // as an approximation if there is one
                     else
                     { 
+                        if (USE_NETWORK_LOCATION)
+                        {
+                            Log.i(TAG, "Getting network location");
+                            try
+                            {
+                                mLocManager.requestLocationUpdates(
+                                    LocationManager.NETWORK_PROVIDER, 
+                                    0L, 0.0f,
+                                    mNetLocListener);
+                                mWaitingForNetLocation = true;
+                            }
+                            catch (Exception e)
+                            {
+                                Log.e(TAG, "Could not register" 
+                                        + "for network locatin update",
+                                        e);
+                            }
+
+
+                        }
+
                         if (mLastKnownLoc != null && 
                                 !mLastKnownLoc.getProvider().equals(
                                     FAKE_PROVIDER))
                         {
                             Log.i(TAG, "Using approx location.");
                             mLastKnownLoc.setProvider(APPROX_PROVIDER);
+                            mLastKnownLoc.setSpeed(0);
                         }
                         else
                         {
                             Log.i(TAG, "Using fake location.");
                             mLastKnownLoc = mFakeLocation;
                         }
-
                     }
-
 
                     // We do not update the 'fix' time 
                     // of the location to allow the client
@@ -807,12 +898,11 @@ public class WiFiGPSLocationService
                     // the location object is.
                     /* mLastKnownLoc.setTime(curTime); */
 
-                    mLastKnownLoc.setSpeed(0);
 
                     mGPSManager.stop();
                 }
             }
-            else
+            else // The cache does not contain the wifi signature
             {
                 Log.i(TAG, "New WiFi set.");
 
@@ -855,6 +945,9 @@ public class WiFiGPSLocationService
                         mScanCache.get(mLastWifiSet).known = true;
                         mScanCache.get(mLastWifiSet).loc =
                         mTempKnownLoc;
+                        mScanCache.get(mLastWifiSet).loc.setProvider(
+                                    CACHED_PROVIDER);
+
                     }
                 }
                 else
@@ -901,7 +994,8 @@ public class WiFiGPSLocationService
     				toBeDeleted.add(key);
     			}
     		} 
-    		else if (timeout > CACHE_TIMEOUT )
+    		else if ((count < CRITICAL_THRESHOLD) 
+                    &&(timeout > CACHE_TIMEOUT ))
 			{
 				Log.i(TAG, "Marking stale record for deletion: " + 
                         record.toString());
@@ -1112,7 +1206,8 @@ public class WiFiGPSLocationService
         mFakeLocation = new Location(FAKE_PROVIDER);
         mFakeLocation.setLatitude(Double.NaN);
         mFakeLocation.setLongitude(Double.NaN);
-        mFakeLocation.setSpeed(0);
+        mFakeLocation.setSpeed(Float.NaN);
+        mFakeLocation.setTime(System.currentTimeMillis());
 
         mLastKnownLoc = mFakeLocation;
         
@@ -1139,6 +1234,9 @@ public class WiFiGPSLocationService
 
         mWifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
         mLocManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+
+        USE_NETWORK_LOCATION = mLocManager.isProviderEnabled(
+                LocationManager.NETWORK_PROVIDER);
         
         setupWiFi();
         
