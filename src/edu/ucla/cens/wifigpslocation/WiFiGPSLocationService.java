@@ -1417,7 +1417,7 @@ public class WiFiGPSLocationService
         if (!mWifi.isWifiEnabled())
             mWifi.setWifiEnabled(true);
         
-        if (mWifi == null)
+        if (mWifiLock == null)
         {
             mWifiLock = mWifi.createWifiLock(
                     WifiManager.WIFI_MODE_SCAN_ONLY, TAG);
@@ -1428,8 +1428,6 @@ public class WiFiGPSLocationService
         }
         else
         {
-            mWifiLock = mWifi.createWifiLock(
-                    WifiManager.WIFI_MODE_SCAN_ONLY, TAG);
             if (!mWifiLock.isHeld())
                 mWifiLock.acquire();
         }

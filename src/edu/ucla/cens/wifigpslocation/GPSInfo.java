@@ -39,6 +39,11 @@ public class GPSInfo
 	{
 		count++;
 	}
+
+    public void resetTime(long newTime)
+    {
+        this.time = newTime;
+    }
 	
 	public String toString()
 	{

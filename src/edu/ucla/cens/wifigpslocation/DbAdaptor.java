@@ -55,8 +55,8 @@ public class DbAdaptor
     
     /** Database creation sql statement */
     private static final String DATABASE_CREATE =
-            "create table wifigps (_id integer primary key "
-           + "autoincrement, recordtime real not null, " 
+            "create table wifigps (_id integer primary key autoincrement, "
+           + "recordtime real not null, " 
            + "recordcount integer not null,"
            + "recordsign text not null,"
            + "loclat real,"
@@ -227,9 +227,9 @@ public class DbAdaptor
 
         return mDb.query(DATABASE_TABLE, new String[] {KEY_ROWID,
             KEY_TIME, KEY_COUNT, KEY_SIGNATURE, KEY_LAT,KEY_LON,
-               KEY_ACC, KEY_PROVIDER, KEY_HASLOC},
+               KEY_ACC, KEY_LOCTIME, KEY_PROVIDER, KEY_HASLOC},
                 null, null, null, null, null);
     }
-
-
 }
+
+
