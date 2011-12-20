@@ -98,8 +98,8 @@ public class WiFiGPSLocationService
 
 
     /** Work unit names */
-    public static final String GPS_UNIT_NAME = "GPS";
-    public static final String WIFISCAN_UNIT_NAME = "WiFiScan";
+    public static final String GPS_UNIT_NAME = "gpstime";
+    public static final String WIFISCAN_UNIT_NAME = "wifiscan";
 
 
     /** Types of messages used by this service */
@@ -220,9 +220,11 @@ public class WiFiGPSLocationService
 
     /** GPS manager object */
     private GPSManager mGPSManager;
+    private CircularQueue mGPSHistory;
 
     /** Scan manager object */
     private ScanManager mScanManager;
+    private CircularQueue mScanHistory;
 
     /** MessageDigest object to compute MD5 hash */
     private MessageDigest mDigest;
@@ -253,6 +255,8 @@ public class WiFiGPSLocationService
 
 
 
+
+
     private final IAdaptiveApplication mAdaptiveControl
         = new IAdaptiveApplication.Stub()
     {
@@ -275,8 +279,18 @@ public class WiFiGPSLocationService
         {
             ArrayList<Double> totalWork = new ArrayList<Double>();
 
-            totalWork.add(mGPSManager.getMinutes());
-            totalWork.add(mScanManager.getWork());
+            double workDone = mGPSManager.getMinutes();
+            mGPSHistory.add(workDone);
+            totalWork.add(workDone);
+            Log.i(TAG, "Added " + workDone + " to GPS history queue: " 
+                    + mGPSHistory.getSum());
+
+            workDone = mScanManager.getWork();
+            mScanHistory.add(workDone);
+            totalWork.add(workDone);
+            Log.i(TAG, "Added " + workDone + " to Scan history queue: " 
+                    + mScanHistory.getSum());
+
 
             return totalWork;
         }
@@ -284,10 +298,10 @@ public class WiFiGPSLocationService
         public void setWorkLimit(List  workLimit)
         {
             double gpsLimit = (Double) workLimit.get(0);
-            double scanLimit = (Double) workLimit.get(1);
+            //double scanLimit = (Double) workLimit.get(1);
 
             mGPSManager.setLimit(gpsLimit);
-            mScanManager.setLimit(scanLimit);
+            //mScanManager.setLimit(scanLimit);
         }
 
 
@@ -367,8 +381,10 @@ public class WiFiGPSLocationService
                         scanList.put(scanJson);
                     }
                     scanResult.put("scan", scanList);
-                    scanResult.put("timestamp", 
+                    scanResult.put("time", 
                             sdf.format(mWifiScanTime.getTime()));
+                    scanResult.put("timestamp",
+                            mWifiScanTime.getTimeInMillis());
 
 
                 }
@@ -1175,6 +1191,15 @@ public class WiFiGPSLocationService
         bindService(new Intent(IPowerMonitor.class.getName()),
                 mPowerMonitorConnection, Context.BIND_AUTO_CREATE);
 
+        // Hacking the interval of SystemSens. This needs to be fixed
+        mGPSHistory = new
+            CircularQueue(DEFAULT_POWERCYCLE_HORIZON/(2*ONE_MINUTE));
+
+        mScanHistory = new
+            CircularQueue(DEFAULT_POWERCYCLE_HORIZON/(2*ONE_MINUTE));
+
+
+
 
         mClientsTable = new Hashtable<String, Integer>();
 
@@ -1482,7 +1507,7 @@ public class WiFiGPSLocationService
         return res;
     }
 
-
+    /*
     class GPSManager
     {
         private double mLimit = Double.NaN;
@@ -1490,22 +1515,31 @@ public class WiFiGPSLocationService
         private double mTotal;
         private double mCurTotal;
         private double mStart;
+        private double mCount;
 
 
         public GPSManager()
         {
             mTotal = 0.0;
+            mCurTotal = 0.0;
+            mCount = 0.0;
         }
 
         public void setLimit(double workLimit)
         {
             mLimit = workLimit * ONE_MINUTE;
+
+            //double used = mCurTotal * DEFAULT_POWERCYCLE_HORIZON/ONE_MINUTE;
+            double used = mGPSHistory.getSum();
+            Log.i(TAG, "Estimated usage per horizon: " + used);
+            Log.i(TAG, "Current limit per horizon: " + workLimit);
             mCurTotal = 0.0;
         }
 
 
         public boolean start()
         {
+            Log.i(TAG, "curTotal:" + mCurTotal + ", mLimit: " + mLimit);
             if (!mGPSRunning)
             {
                 if ( Double.isNaN(mLimit) || (mCurTotal < mLimit) )
@@ -1516,7 +1550,15 @@ public class WiFiGPSLocationService
                             LocationManager.GPS_PROVIDER, 
                             mGpsScanInterval, 0,
                             WiFiGPSLocationService.this);
+
+                    WiFiGPSLocationService.this.mHandler.sendMessageAtTime( 
+                            mHandler.obtainMessage(LOC_UPDATE_MSG), 
+                            SystemClock.uptimeMillis() 
+                            + WiFiGPSLocationService.this.GPS_LOCK_TIMEOUT); 
+
+
                     mGPSRunning = true;
+                    mCount += 1;
                     return mGPSRunning;
                 }
                 else 
@@ -1557,6 +1599,9 @@ public class WiFiGPSLocationService
                 mTotal += (current - mStart);
                 mCurTotal += (current - mStart);
                 mGPSRunning = false;
+
+
+                Log.i(TAG, "Updated mCurTotal to " + mCurTotal);
             }
 
         }
@@ -1565,20 +1610,141 @@ public class WiFiGPSLocationService
         {
             double res;
 
+            if (mGPSRunning)
+            {
+                double current =  SystemClock.elapsedRealtime();
+                mTotal += (current - mStart);
+                mCurTotal += (current - mStart);
+                mStart = current;
+
+            }
+
+            return  mTotal/ONE_MINUTE;
+        }
+
+        public double getCount()
+        {
+            return mCount;
+
+        }
+    }
+    */
+
+
+
+
+    /** Old GPSManager */
+    class GPSManager
+    {
+        private double mLimit = Double.NaN;
+
+        private double mTotal;
+        private double mCurTotal;
+        private double mStart;
+
+
+        public GPSManager()
+        {
+            mTotal = 0.0;
+            mCurTotal = 0.0;
+        }
+
+        public void setLimit(double workLimit)
+        {
+            mLimit = workLimit * ONE_MINUTE;
+            mCurTotal = 0.0;
+            double used = mGPSHistory.getSum();
+            Log.i(TAG, "Estimated usage per horizon: " + used);
+            Log.i(TAG, "Current limit per horizon: " + workLimit);
+        }
+
+
+        public boolean start()
+        {
+            Log.i(TAG, "curTotal:" + mCurTotal 
+                    + ", mLimit: " + mLimit);
+
             if (!mGPSRunning)
             {
-                res =  mTotal/ONE_MINUTE;
+                if ( Double.isNaN(mLimit) || (mCurTotal < mLimit) )
+                {
+                    mStart = SystemClock.elapsedRealtime();
+                    Log.i(TAG, "Starting GPS.");
+                    mLocManager.requestLocationUpdates( 
+                            LocationManager.GPS_PROVIDER, 
+                            mGpsScanInterval, 0,
+                            WiFiGPSLocationService.this);
+                    mGPSRunning = true;
+                    return mGPSRunning;
+                }
+                else 
+                {
+                    Log.i(TAG, "No budget to start GPS.");
+                    mGPSRunning = false;
+                    return mGPSRunning;
+                }
             }
             else
             {
                 double current =  SystemClock.elapsedRealtime();
-                double currentTotal = mTotal + (current - mStart);
-                res =  currentTotal/ONE_MINUTE;
+                mTotal += (current - mStart);
+                mCurTotal += (current - mStart);
+                mStart = current;
+
+
+                if ( !Double.isNaN(mLimit) && (mCurTotal > mLimit) )
+                {
+
+                    Log.i(TAG, "Ran out of GPS budget.");
+                    mLocManager.removeUpdates(WiFiGPSLocationService.this);
+                    Log.i(TAG, "Stopping GPS.");
+                    mGPSRunning = false;
+                    return mGPSRunning;
+                }
+                else
+                {
+                    Log.i(TAG, "Continue scanning GPS.");
+                    mGPSRunning = true;
+                    return mGPSRunning;
+                }
             }
 
-            return res;
+
+        }
+
+        public void stop()
+        {
+            if (mGPSRunning)
+            {
+                mLocManager.removeUpdates(WiFiGPSLocationService.this);
+                Log.i(TAG, "Stopping GPS.");
+
+                double current =  SystemClock.elapsedRealtime();
+                mTotal += (current - mStart);
+                mCurTotal += (current - mStart);
+                mGPSRunning = false;
+
+                Log.i(TAG, "Updated mCurTotal to " + mCurTotal);
+            }
+
+        }
+
+        public double getMinutes()
+        {
+            double res;
+
+            if (mGPSRunning)
+            {
+                double current =  SystemClock.elapsedRealtime();
+                mTotal += (current - mStart);
+                mCurTotal += (current - mStart);
+                mStart = current;
+            }
+
+            return mTotal/ONE_MINUTE;
         }
     }
+    
 
 
     class ScanManager
