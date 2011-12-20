@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Calendar;
+import java.util.TimeZone;
 import java.util.Locale;
 import java.util.Collections;
 import java.text.SimpleDateFormat;
@@ -381,11 +382,14 @@ public class WiFiGPSLocationService
                         scanList.put(scanJson);
                     }
                     scanResult.put("scan", scanList);
+                    /*
                     scanResult.put("time", 
                             sdf.format(mWifiScanTime.getTime()));
-                    scanResult.put("timestamp",
+                    */
+                    scanResult.put("time",
                             mWifiScanTime.getTimeInMillis());
 
+                    scanResult.put("timezone", TimeZone.getDefault());
 
                 }
                 catch (JSONException je)
