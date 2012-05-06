@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Calendar;
-import java.util.TimeZone;
+//import java.util.TimeZone;
 import java.util.Locale;
 import java.util.Collections;
 import java.text.SimpleDateFormat;
@@ -22,6 +22,8 @@ import java.util.ConcurrentModificationException;
 import org.json.JSONObject;
 import org.json.JSONArray;
 import org.json.JSONException;
+
+import org.joda.time.DateTimeZone;
 
 
 import android.content.BroadcastReceiver;
@@ -112,6 +114,8 @@ public class WiFiGPSLocationService
         "wifiscan_alarm";
     private static final String CLEANUP_ALARM_ACTION =
         "cleanup_alarm";
+    private static final String NETSCAN_ALARM_ACTION =
+        "netscan_alarm";
 
 
     /** Time unit constants */
@@ -141,6 +145,9 @@ public class WiFiGPSLocationService
 
     /** Set this to false to stop using network location */
     private boolean USE_NETWORK_LOCATION = true;
+
+    /** Decides if Network-based location should be prefered to GPS */
+    private static final boolean PRIORITIZE_NETLOCATION = true;
 
     /** Provider strings */
     private static final String WIFIGPS_PROVIDER =
@@ -198,6 +205,9 @@ public class WiFiGPSLocationService
     /** Boolean flag indicating waiting for network location update */
     private boolean mWaitingForNetLocation = false;
 
+    /** Flag set when there is no visible WiFi AP */
+    private boolean mZeroWifi = false;
+
 
     /** WiFi wake lock object */
     private WifiLock mWifiLock;
@@ -213,6 +223,7 @@ public class WiFiGPSLocationService
     /** Pending Intent objects */
     private PendingIntent mScanSender;
     private PendingIntent mCleanupSender;
+    private PendingIntent mNetScanSender;
 
 
     /** Location manager object to receive location objects */
@@ -342,15 +353,26 @@ public class WiFiGPSLocationService
          *
          * @return		the last known location
          */
-        public Location getLocation()
+        public synchronized Location getLocation()
         {
             if (!mRun)
+            {
+                Log.i(TAG, "Reporting null to client.");
                 return null;
+            }
 
             if (mLastKnownLoc != null)
+            {
+                Log.i(TAG, "Reporting " + mLastKnownLoc.getProvider() 
+                        + " to client.");
                 return mLastKnownLoc;
+            }
             else
+            {
+                Log.i(TAG, "Reporting " + mFakeLocation.getProvider() 
+                        + " to client.");
                 return mFakeLocation;
+            }
         }
 
 
@@ -389,7 +411,9 @@ public class WiFiGPSLocationService
                     scanResult.put("time",
                             mWifiScanTime.getTimeInMillis());
 
-                    scanResult.put("timezone", TimeZone.getDefault());
+                    scanResult.put("timezone",
+                            DateTimeZone.getDefault().getID());
+                            //TimeZone.getDefault().getID());
 
                 }
                 catch (JSONException je)
@@ -499,6 +523,7 @@ public class WiFiGPSLocationService
                 // Cancel pending alarms
                 mAlarmManager.cancel(mScanSender);
                 mAlarmManager.cancel(mCleanupSender);
+                mAlarmManager.cancel(mNetScanSender);
                 cleanCache();
 
  
@@ -536,9 +561,17 @@ public class WiFiGPSLocationService
             {
                 mRun = true;
                 setupWiFi();
+                long now = SystemClock.elapsedRealtime();
+
+                if (PRIORITIZE_NETLOCATION)
+                {
+                    // Fire the netloc scanning alarm
+                    mAlarmManager.setRepeating(
+                            AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                            now, mGpsScanInterval, mNetScanSender);
+                }
 
                 // Fire the WiFi scanning alarm
-                long now = SystemClock.elapsedRealtime();
                 mAlarmManager.setRepeating(
                         AlarmManager.ELAPSED_REALTIME_WAKEUP,
                         now, mWifiScanInterval, mScanSender);
@@ -552,7 +585,8 @@ public class WiFiGPSLocationService
 
 
                 // Start running GPS to get current location ASAP
-                mGPSManager.start();
+                if (!PRIORITIZE_NETLOCATION)
+                    mGPSManager.start();
             }
         }
 
@@ -586,7 +620,6 @@ public class WiFiGPSLocationService
                 mScanResults = mWifi.getScanResults();
                 mWifiScanTime = Calendar.getInstance();
                 
-
                 Log.v(TAG, "WiFi scan found " + mScanResults.size() 
                         + " APs");
 
@@ -596,28 +629,30 @@ public class WiFiGPSLocationService
                 for (ScanResult result : mScanResults)
                 {
                     //It seems APs with higher signal strengths are
-                    //more stable.  So I am ignoring weak APs.
-                    if (result.level > SIGNAL_THRESHOLD)
-                    {
-                        sResult.add(result.BSSID);
-                    }
-
+                    //more stable. Iterate over all APs and find the
+                    //mean signal strength. Then ignore 'weak' ones.
                     Log.v(TAG, result.BSSID + " (" 
                             + result.level + "dBm)");
 
                     levelSum += result.level;
                 }
 
-                if ((sResult.size() == 0) && (mScanResults.size() > 0))
+                if (mScanResults.size() > 0)
                 {
+                    mZeroWifi = false;
                     double newThreshold = levelSum/mScanResults.size();
-                    Log.i(TAG, "Signals are too weak."
-                            + " Using " + newThreshold
-                            + " as new threshold.");
+                    Log.i(TAG, " Using " + newThreshold
+                            + " as signal strength threshold.");
                     
                     for (ScanResult result : mScanResults)
                         if (result.level >= newThreshold)
                             sResult.add(result.BSSID);
+
+                }
+                else
+                {
+                    Log.i(TAG, "No visible WiFi AP");
+                    mZeroWifi = true;
 
                 }
 
@@ -653,7 +688,7 @@ public class WiFiGPSLocationService
 
     private LocationListener mNetLocListener = new LocationListener()
     {
-        public void onLocationChanged(Location location)
+        public synchronized void onLocationChanged(Location location)
         {
 
            if (mWaitingForNetLocation)
@@ -706,7 +741,6 @@ public class WiFiGPSLocationService
 
         if ( accuracy < GPS_ACCURACY_THRESHOLD)
         {
-
             mHandler.removeMessages(LOC_UPDATE_MSG);
             mLastKnownLoc = location;
 
@@ -735,6 +769,11 @@ public class WiFiGPSLocationService
                     mLastKnownLoc = location;				
                     mLastKnownLoc.setProvider(WIFIGPS_PROVIDER);
                 }
+            }
+            else
+            {
+                mLastKnownLoc = location;				
+                mLastKnownLoc.setProvider(WIFIGPS_PROVIDER);
             }
         }
         else
@@ -771,6 +810,22 @@ public class WiFiGPSLocationService
     
     private synchronized void updateLocation(List<String> wifiSet)
     {
+        // If the system is configrued to prioritize Network-based
+        // location to GPS, we will turn GPS on when there is no WiFi
+        // AP and return
+        if (PRIORITIZE_NETLOCATION)
+        {
+            if (mZeroWifi)
+                mGPSManager.start();
+            else
+                mGPSManager.stop();
+
+            return;
+        }
+
+        // Otherwise (we prefer GPS to Network-based location) we
+        // continue with the following logic
+
         long curTime = System.currentTimeMillis();
         GPSInfo record;
         byte[] byteKey = mDigest.digest(wifiSet.toString().getBytes());
@@ -1175,6 +1230,26 @@ public class WiFiGPSLocationService
                         mCpuLock.acquire(); // Released by cleanCache()
                     cleanCache();
                 }
+                /* For PRIORITIZE_NETLOCATION version */
+                else if (action.equals(NETSCAN_ALARM_ACTION) 
+                        && PRIORITIZE_NETLOCATION)
+                {
+                    try
+                    {
+                        mLocManager.requestLocationUpdates(
+                            LocationManager.NETWORK_PROVIDER, 
+                            0L, 0.0f,
+                            mNetLocListener);
+                        mWaitingForNetLocation = true;
+                    }
+                    catch (Exception e)
+                    {
+                        Log.e(TAG, "Could not register" 
+                                + "for network locatin update",
+                                e);
+                    }
+                }
+
             }
 
         }
@@ -1297,6 +1372,14 @@ public class WiFiGPSLocationService
                 WiFiGPSLocationService.this, 0, cleanupAlarmIntent, 0);
 
 
+        /* For PRIORITIZE_NETLOCATION version */
+        Intent netScanAlarmIntent = new Intent(WiFiGPSLocationService.this,
+                WiFiGPSLocationService.class);
+        netScanAlarmIntent.setAction(NETSCAN_ALARM_ACTION);
+        mNetScanSender = PendingIntent.getService(
+                WiFiGPSLocationService.this, 0, netScanAlarmIntent, 0);
+
+
 
 
 		
@@ -1324,6 +1407,7 @@ public class WiFiGPSLocationService
         // Cancel the pending alarms
         mAlarmManager.cancel(mScanSender);
         mAlarmManager.cancel(mCleanupSender);
+        mAlarmManager.cancel(mNetScanSender);
     	
     	// Cancel location update registration 
 		mLocManager.removeUpdates(this);
@@ -1467,8 +1551,9 @@ public class WiFiGPSLocationService
      */
     private void resetToDefault()
     {
-        mWifiScanInterval = DEFAULT_WIFI_SCANNING_INTERVAL;
         mGpsScanInterval = DEFAULT_GPS_SCANNING_INTERVAL;
+        mWifiScanInterval = DEFAULT_WIFI_SCANNING_INTERVAL;
+
     }
 
 
